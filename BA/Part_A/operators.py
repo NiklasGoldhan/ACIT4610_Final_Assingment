@@ -33,8 +33,3 @@ def reverse_operator(trip: list[int]) -> list[int]:
     new_trip[random_index_1:random_index_2] = part_to_reverse
 
     return new_trip
-
-
-x = generate_initial_trip(20)
-y = swap_operator(x)
-c = reverse_operator(x)
