@@ -1,7 +1,11 @@
+import time
 import numpy as np
 from dataclasses import dataclass
 
 SEED = 42
+BUDGET = 30_000
+SIGMA_MIN = 1e-8
+SIGMA_MAX = 1.0
 
 """
 Blant annet brukt AI for riktig implementasjon av funksjoner fra oppgaveteksten med
@@ -54,6 +58,16 @@ class PortfolioData:
         cov = cls.build_covariance_matrix(std_values, corr)
 
         return cls(mean_return, std_values, corr, cov)
+
+
+@dataclass(slots=True)
+class ESRunResult:
+    weights: np.ndarray
+    variance: float
+    expected_return: float
+    evaluations: int
+    history: np.ndarray
+    runtime: float
 
 
 class ESBase:
@@ -165,3 +179,38 @@ class ESBase:
         """Initialize weights randomly and repair them to ensure feasibility."""
         weights = self.rng.uniform(0, 1, self.n)
         return self.repair(weights)
+
+
+    def reset_archive(self):
+        """Start a new run with an empty archive and no evaluations used."""
+        self.best_weights = None
+        self.best_variance = np.inf
+        self.evaluations = 0
+        self.history = []
+
+
+    def evaluate(self, weights):
+        """
+        Calculate the variance of the weights and count it as one evaluation.
+        The archive keeps the best weights found so far, and history stores
+        the best variance after every evaluation (used for convergence plots).
+        """
+        variance = self.variance(weights)
+        self.evaluations += 1
+        if variance < self.best_variance:
+            self.best_variance = variance
+            self.best_weights = weights.copy()
+        self.history.append(self.best_variance)
+        return variance
+
+
+    def make_result(self, start_time):
+        """Collect the archive into a result for the benchmark."""
+        return ESRunResult(
+            weights=self.best_weights,
+            variance=float(self.best_variance),
+            expected_return=float(self.expected_return(self.best_weights)),
+            evaluations=self.evaluations,
+            history=np.array(self.history),
+            runtime=time.perf_counter() - start_time,
+        )
