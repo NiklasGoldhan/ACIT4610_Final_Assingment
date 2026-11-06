@@ -7,12 +7,14 @@ class OnePlusOneES(ESBase):
 
 
     def mutate(self, parent, sigma):
+        """Mutate the parent solution to create a child solution."""
         noise = self.rng.normal(0, 1, self.n)
         child = parent + sigma * noise
         return self.repair(child)
 
 
     def update_sigma(self, sigma, success):
+        """Update the mutation step size."""
         if success:
             sigma *= np.exp(1 / 3)
         else:
