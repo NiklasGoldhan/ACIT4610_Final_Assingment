@@ -1,17 +1,17 @@
+class City:
+    id: int = None
+    x: float = None
+    y: float = None
+
+    def __init__(self, id: int, x: float, y: float):
+        self.id = id
+        self.x = x
+        self.y = y
+
 class TSPInstance:
     def __init__(self):
         self.metadata: dict = {}
         self.dataset: list = []
-
-    class City:
-        id: int = None
-        x: float = None
-        y: float = None
-
-        def __init__(self, id: int, x: int, y: int):
-            self.id = id
-            self.x = x
-            self.y = y
 
     def read_file(self,path):
         with open(path, 'r', encoding='utf-8') as file:
@@ -33,10 +33,12 @@ class TSPInstance:
                 else:
                     # Parse coordinate rows
                     parts = line.split()
-                    city = self.City(int(parts[0]), float(parts[1]), float(parts[2]))
+                    city = City(int(parts[0])-1, float(parts[1]), float(parts[2]))
                     self.dataset.append(city)
 
     def validate_dataset_metadata(self) -> bool:
+        if self.metadata.get('NAME') == None:
+            return False
         if self.metadata.get('TYPE') != 'TSP':
             return False 
         if self.metadata.get('EDGE_WEIGHT_TYPE') != 'EUC_2D': 
@@ -54,6 +56,6 @@ class TSPInstance:
 
 tspinstance = TSPInstance()
 
-tspinstance.read_file('BA/data/eil51.tsp')
+tspinstance.read_file('BA/Part_A/data/eil51.tsp')
 tspinstance.validate_dataset_metadata()
             
