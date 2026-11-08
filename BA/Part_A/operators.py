@@ -28,8 +28,8 @@ def reverse_operator(trip: list[int]) -> list[int]:
     random_index_1, random_index_2 = min(idx_a, idx_b), max(idx_a, idx_b)
 
     new_trip = trip.copy()
-    part_to_reverse = new_trip[random_index_1:random_index_2]
+    part_to_reverse = new_trip[random_index_1:random_index_2 + 1]
     part_to_reverse.reverse()
-    new_trip[random_index_1:random_index_2] = part_to_reverse
+    new_trip[random_index_1:random_index_2 + 1] = part_to_reverse
 
     return new_trip
