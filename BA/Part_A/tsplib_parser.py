@@ -1,8 +1,4 @@
 class City:
-    id: int = None
-    x: float = None
-    y: float = None
-
     def __init__(self, id: int, x: float, y: float):
         self.id = id
         self.x = x
@@ -53,9 +49,4 @@ class TSPInstance:
         if len(city_index_set) != len(self.dataset):
             return False
         return True
-
-tspinstance = TSPInstance()
-
-tspinstance.read_file('BA/Part_A/data/eil51.tsp')
-tspinstance.validate_dataset_metadata()
             

@@ -3,12 +3,6 @@ from math import floor, sqrt
 from tsplib_parser import City
 
 class TripEval:
-    distance_matrix = None
-    eval_count: int = None
-    best_trip = None
-    best_length = None
-    history: list = None
-    max_evals: int = None
     def __init__(self, distance_matrix):
         self.distance_matrix = distance_matrix
         self.eval_count = 0
