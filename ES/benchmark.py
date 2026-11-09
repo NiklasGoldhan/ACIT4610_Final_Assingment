@@ -4,6 +4,8 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+
+from ES.one_plus_one import OnePlusOneES
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -31,6 +33,7 @@ CONVERGENCE_CASE = "port5_alpha050"
 # an ESRunResult, so it has no runtime or best-so-far history. Add it back later
 
 VARIANTS = {
+    "(1+1)-ES": OnePlusOneES,
     "(mu+lambda)-ES": MuPlusLambdaES,
     "(mu,lambda)-ES": MuCommaLambdaES,
 }
