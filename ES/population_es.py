@@ -61,6 +61,9 @@ class PopulationES(ESBase):
             parent_sigmas.append(np.full(self.n, 0.1 / np.sqrt(self.n)))
             parent_variances.append(self.evaluate(weights))
 
+        # Median sigma over all parents and assets, once per generation (diagnostic only).
+        sigma_history = [np.median(parent_sigmas)]
+
         while self.evaluations < max_evaluations:
             # The last generation can be smaller than lambda so we stop exactly at the budget.
             num_children = min(self.lam, max_evaluations - self.evaluations)
@@ -90,8 +93,11 @@ class PopulationES(ESBase):
             parents = [pool[i] for i in best]
             parent_sigmas = [pool_sigmas[i] for i in best]
             parent_variances = [pool_variances[i] for i in best]
+            sigma_history.append(np.median(parent_sigmas))
 
-        return self.make_result(start_time)
+        result = self.make_result(start_time)
+        result.sigma_history = np.array(sigma_history)
+        return result
 
 
 class MuPlusLambdaES(PopulationES):
