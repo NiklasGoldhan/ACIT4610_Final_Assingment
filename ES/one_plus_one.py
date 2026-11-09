@@ -1,4 +1,6 @@
-from ES.base import ESBase
+import time
+
+from ES.base import ESBase, BUDGET, SIGMA_MIN, SIGMA_MAX
 import numpy as np
 
 class OnePlusOneES(ESBase):
@@ -20,12 +22,14 @@ class OnePlusOneES(ESBase):
         else:
             sigma *= np.exp(-1 / 12)
 
-        return np.clip(sigma, 1e-8, 1.0)
+        return np.clip(sigma, SIGMA_MIN, SIGMA_MAX)
 
 
-    def run(self, max_evaluations=30000):
+    def run(self, max_evaluations=BUDGET):
+        start_time = time.perf_counter()
+        self.reset_archive()
         parent = self.initialize_weights()
-        parent_variance = self.variance(parent)
+        parent_variance = self.evaluate(parent)
 
         sigma = 0.1 / np.sqrt(self.n)
         evaluations = 1
@@ -49,5 +53,5 @@ class OnePlusOneES(ESBase):
 
             sigma = self.update_sigma(sigma, success)
 
-        return parent, parent_variance
+        return self.make_result(start_time)
 

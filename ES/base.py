@@ -84,16 +84,12 @@ class ESBase:
 
     
     def variance(self, weights):
-        """
-        Calculate the portfolio variance given weights.
-        """
+        """Calculate the portfolio variance given weights."""
         return weights @ self.cov @ weights
     
     
     def target_calculations(self, mean_return):
-        """
-        Calculate the minimum required return for a dataset.
-        """
+        """Calculate the minimum required return for a dataset."""
         alphas = [0.25, 0.50, 0.75]
 
         equal_weights = np.full(mean_return.size, 1 / mean_return.size)
@@ -104,14 +100,11 @@ class ESBase:
             alpha: (1 - alpha) * Req + alpha * Rmax
             for alpha in alphas
         }
-
         return Req, return_targets
 
     
     def expected_return(self, weights):
-        """
-        Calculate the expected return for the given weights.
-        """
+        """Calculate the expected return for the given weights."""
         return self.mean_return @ weights
 
     
@@ -132,9 +125,7 @@ class ESBase:
 
     
     def repair(self, weights):
-        """
-        Project weights onto the simplex and repair the return constraint.
-        """
+        """Project weights onto the simplex and repair the return constraint."""
         # Convert weights to a numpy array and ensure they have the correct shape.
         weights = np.asarray(weights, dtype=float)
         if weights.shape != (self.n,):
@@ -160,9 +151,7 @@ class ESBase:
             if maximum_return < self.Rmin:
                 raise ValueError("Rmin is infeasible for the available assets")
 
-            beta = (self.Rmin - current_return) / (
-                maximum_return - current_return
-            )
+            beta = (self.Rmin - current_return) / (maximum_return - current_return)
             best_asset = np.zeros(self.n)
             best_asset[maximum_return_index] = 1
             projected = (1 - beta) * projected + beta * best_asset
