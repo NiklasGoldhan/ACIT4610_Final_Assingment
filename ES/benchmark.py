@@ -1,28 +1,16 @@
 import argparse
 import csv
-import itertools
 from pathlib import Path
 
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scipy.stats import rankdata, wilcoxon
 
 from ES.base import PortfolioData, ESBase, BUDGET
 from ES.one_plus_one import OnePlusOneES
 from ES.population_es import MuPlusLambdaES, MuCommaLambdaES
-
-"""
-Runs every ES variant on all 15 test cases with 10 seeds each and writes
-the raw results, the summary table, the statistical tests and the
-convergence and step-size plots.
-
-The gap columns compare against the OR-Library efficient frontiers
-(data/portef1-5.txt, https://people.brunel.ac.uk/~mastjjb/jeb/orlib/files/).
-
-Run everything:      python -m ES.benchmark
-Run one test case:   python -m ES.benchmark --case port1_alpha050
-"""
 
 ES_DIRECTORY = Path(__file__).resolve().parent
 DATA_DIRECTORY = ES_DIRECTORY / "data"
@@ -100,15 +88,13 @@ def last_improvement(history):
 def run_case(case_name, problem, Rmin, ref_variance):
     """
     Run every ES variant on one test case, once per seed.
-    Returns one row per run, plus the best-so-far and median-sigma history of every run.
+    Returns one row per run, plus the best-so-far history of every run.
     """
     rows = []
     histories = {}
-    sigma_histories = {}
 
     for name, variant in VARIANTS.items():
         histories[name] = []
-        sigma_histories[name] = []
         for seed in SEEDS:
             es = variant(problem, Rmin, seed=seed)
             result = es.run()
@@ -131,12 +117,11 @@ def run_case(case_name, problem, Rmin, ref_variance):
                 "weights": " ".join(f"{w:.10g}" for w in result.weights),
             })
             histories[name].append(result.history)
-            sigma_histories[name].append(result.sigma_history)
 
             print(f"{case_name:<16} {name:<16} seed {seed}  variance {result.variance:.6e}  "
                   f"valid {valid}  {result.runtime:.2f} s")
 
-    return rows, histories, sigma_histories
+    return rows, histories
 
 
 def summarize(rows):
@@ -175,38 +160,16 @@ def summarize(rows):
 
 def wilcoxon_signed_rank(x, y):
     """
-    Exact two-sided Wilcoxon signed-rank test for paired samples (small n).
-    Zero differences are dropped and tied absolute differences get average ranks.
+    Two-sided paired Wilcoxon signed-rank test (scipy), zero differences dropped.
     Returns (W+, p-value, number of non-zero pairs).
     """
-    d = np.asarray(x, dtype=float) - np.asarray(y, dtype=float)
+    d = np.subtract(x, y)
     d = d[d != 0]
-    m = d.size
-    if m == 0:
+    if d.size == 0:   # identical results on every seed: scipy would return NaN
         return 0.0, 1.0, 0
-
-    # Average ranks of |d|.
-    order = np.argsort(np.abs(d))
-    sorted_abs = np.abs(d)[order]
-    ranks = np.empty(m)
-    start = 0
-    while start < m:
-        end = start
-        while end + 1 < m and sorted_abs[end + 1] == sorted_abs[start]:
-            end += 1
-        ranks[order[start:end + 1]] = (start + end) / 2 + 1
-        start = end + 1
-
-    w_plus = ranks[d > 0].sum()
-    centre = ranks.sum() / 2
-    observed = abs(w_plus - centre)
-
-    # Exact null distribution: every sign pattern is equally likely.
-    extreme = 0
-    for signs in itertools.product((0, 1), repeat=m):
-        if abs(ranks[np.array(signs, dtype=bool)].sum() - centre) >= observed - 1e-12:
-            extreme += 1
-    return float(w_plus), extreme / 2 ** m, m
+    p_value = wilcoxon(d, alternative="two-sided").pvalue
+    w_plus = rankdata(np.abs(d))[d > 0].sum()   # scipy reports min(W+, W-), so compute W+ here
+    return float(w_plus), float(p_value), d.size
 
 
 def compare_variants(rows, alpha=0.05):
@@ -282,34 +245,6 @@ def save_convergence(histories, case_name):
     print(f"Saved {plot_path}")
 
 
-def save_sigma(sigma_histories, case_name):
-    """Save and plot the median parent sigma per generation, mean over the seeds."""
-    # (1+1)-ES has no sigma_history (single scalar step size), so skip it here.
-    sigma_histories = {name: runs for name, runs in sigma_histories.items()
-                       if runs and runs[0] is not None}
-    log_path = RESULTS_DIRECTORY / f"sigma_{case_name}.npz"
-    np.savez_compressed(log_path, **sigma_histories)
-    print(f"Saved {log_path}")
-
-    plt.figure(figsize=(8, 5))
-    for name, runs in sigma_histories.items():
-        mean_sigma = np.mean(runs, axis=0)
-        plt.plot(np.arange(len(mean_sigma)), mean_sigma, label=name)
-
-    plt.yscale("log")
-    plt.title(f"Step size on {case_name} (mean of {len(SEEDS)} runs)")
-    plt.xlabel("Generation")
-    plt.ylabel("Median parent sigma (log scale)")
-    plt.legend()
-    plt.grid(True, which="both", alpha=0.3)
-    plt.tight_layout()
-
-    plot_path = PLOTS_DIRECTORY / f"sigma_{case_name}.png"
-    plt.savefig(plot_path, dpi=200)
-    plt.close()
-    print(f"Saved {plot_path}")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Benchmark the ES variants.")
     parser.add_argument("--case", help="run a single test case, e.g. port1_alpha050")
@@ -328,11 +263,10 @@ def main():
 
     all_rows = []
     for case_name, problem, Rmin, ref_variance in test_cases:
-        rows, histories, sigma_histories = run_case(case_name, problem, Rmin, ref_variance)
+        rows, histories = run_case(case_name, problem, Rmin, ref_variance)
         all_rows += rows
         if case_name == CONVERGENCE_CASE:
             save_convergence(histories, case_name)
-            save_sigma(sigma_histories, case_name)
 
     # A single case gets its own file names so it does not overwrite the full run.
     suffix = f"_{args.case}" if args.case else ""

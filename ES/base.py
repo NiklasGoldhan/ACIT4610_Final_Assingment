@@ -68,8 +68,6 @@ class ESRunResult:
     evaluations: int
     history: np.ndarray
     runtime: float
-    # Median step size of the parents after each generation (population ES only).
-    sigma_history: np.ndarray | None = None
 
 
 class ESBase:
