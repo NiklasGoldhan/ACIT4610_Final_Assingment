@@ -72,7 +72,6 @@ class ESRunResult:
 
 class ESBase:
     def __init__(self, problem, Rmin, seed=None):
-        self.problem = problem
         self.mean_return = problem.mean_return
         self.cov = problem.cov
         self.Rmin = Rmin
@@ -87,18 +86,16 @@ class ESBase:
         """Calculate the portfolio variance given weights."""
         return weights @ self.cov @ weights
     
-    
-    def target_calculations(self, mean_return):
+    @staticmethod
+    def target_calculations(mean_return):
         """Calculate the minimum required return for a dataset."""
-        alphas = [0.25, 0.50, 0.75]
-
         equal_weights = np.full(mean_return.size, 1 / mean_return.size)
         Req = mean_return @ equal_weights
         Rmax = np.max(mean_return)
 
         return_targets = {
             alpha: (1 - alpha) * Req + alpha * Rmax
-            for alpha in alphas
+            for alpha in (0.25, 0.50, 0.75)
         }
         return Req, return_targets
 
@@ -144,10 +141,11 @@ class ESBase:
             projected = np.maximum(weights - theta, 0)
 
         # Repair if the expected return is below Rmin.
-        if self.expected_return(projected) < self.Rmin:
+        current_return = self.expected_return(projected)
+
+        if current_return < self.Rmin:
             maximum_return_index = np.argmax(self.mean_return)
             maximum_return = self.mean_return[maximum_return_index]
-            current_return = self.expected_return(projected)
             if maximum_return < self.Rmin:
                 raise ValueError("Rmin is infeasible for the available assets")
 
@@ -203,3 +201,9 @@ class ESBase:
             history=np.array(self.history),
             runtime=time.perf_counter() - start_time,
         )
+
+    def mutate(self, parent, sigma):
+        """Mutate the parent solution to create a child solution."""
+        noise = self.rng.normal(0, 1, self.n)
+        child = parent + sigma * noise
+        return self.repair(child)

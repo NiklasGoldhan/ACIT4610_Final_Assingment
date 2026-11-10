@@ -66,8 +66,7 @@ def load_test_cases() -> list[tuple]:
     for dataset in DATASETS:
         problem = PortfolioData.load_data(DATA_DIRECTORY / f"{dataset}.txt")
         # Rmin is not needed for the targets, so None is fine.
-        Req, targets = ESBase(problem, None).target_calculations(problem.mean_return)
-
+        Req, targets = ESBase.target_calculations(problem.mean_return)
         if dataset == "port1":
             parser_validation_port1(problem, Req, targets)
 

@@ -39,12 +39,6 @@ class PopulationES(ESBase):
         sigma = sigma * np.exp(self.tau_prime * z0 + self.tau * zi)
         return np.clip(sigma, SIGMA_MIN, SIGMA_MAX)
 
-    def mutate(self, weights, sigma):
-        """Mutate the weights with Gaussian noise, then repair them."""
-        noise = self.rng.normal(0, 1, self.n)
-        child = weights + sigma * noise
-        return self.repair(child)
-
     def run(self, max_evaluations=BUDGET):
         """Run one search and return the best feasible allocation found."""
         start_time = time.perf_counter()
