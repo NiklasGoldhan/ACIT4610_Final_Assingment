@@ -2,9 +2,6 @@ import numpy as np
 
 # MAIN ALGORITHM
 
-class MaxReached(Exception):
-    """Raised when MAX_EVALS is reached."""
-
 def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_factor=0.8, seed=None):
     """
     Minimizes a function f within the given bounds using the bees algorithm.
@@ -25,6 +22,9 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
     """
     MAX_EVALS = 30_000
 
+    class MaxReached(Exception):
+        """Raised when MAX_EVALS is reached."""
+
     rng = np.random.default_rng(seed)
     b_min, b_max = bounds
 
@@ -37,7 +37,7 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
         nonlocal evals, best_x, best_fx
         if evals >= MAX_EVALS:
             raise MaxReached
-        fx = float(f(x))
+        fx = f(x)
         evals += 1
         if fx < best_fx:
             best_fx, best_x = fx, np.array(x, copy=True)
@@ -46,7 +46,7 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
     # Initialization 
     xs = rng.uniform(b_min, b_max, size=(ns, dim))
     fxs = np.array([evaluate(x) for x in xs])
-    site_ngh = np.full(ns, float(ngh))
+    site_ngh = np.full(ns, ngh)
     st_count = np.zeros(ns, dtype=int)
 
     try:
