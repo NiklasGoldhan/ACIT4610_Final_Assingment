@@ -1,3 +1,5 @@
+"""Run all ES variants on the 15 test cases and save the results."""
+
 import argparse
 import csv
 from pathlib import Path
@@ -6,7 +8,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from scipy.stats import rankdata, wilcoxon
+from scipy.stats import wilcoxon
 
 from ES.base import PortfolioData, ESBase, BUDGET
 from ES.one_plus_one import OnePlusOneES
@@ -20,6 +22,7 @@ PLOTS_DIRECTORY = ES_DIRECTORY / "plots"
 DATASETS = ["port1", "port2", "port3", "port4", "port5"]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 CONVERGENCE_CASE = "port5_alpha050"
+SIGNIFICANCE_LEVEL = 0.05
 
 VARIANTS = {
     "(1+1)-ES": OnePlusOneES,
@@ -27,7 +30,7 @@ VARIANTS = {
     "(mu,lambda)-ES": MuCommaLambdaES,
 }
 
-# Pairs of variants to compare with the Wilcoxon signed-rank test.
+# Variant pairs for the Wilcoxon test.
 COMPARISONS = [
     ("(1+1)-ES", "(mu+lambda)-ES"),
     ("(1+1)-ES", "(mu,lambda)-ES"),
@@ -35,8 +38,10 @@ COMPARISONS = [
 ]
 
 
-def parser_validation_port1(problem, Req, targets):
-    """Check the port1.txt parser against the values given in the assignment."""
+# --- Test cases ---
+
+def parser_validation_port1(problem: PortfolioData, Req: float, targets: dict) -> None:
+    """Check port1 against the values in the assignment."""
     equal_weights = np.full(problem.mean_return.size, 1 / problem.mean_return.size)
     equal_variance = equal_weights @ problem.cov @ equal_weights
 
@@ -46,12 +51,23 @@ def parser_validation_port1(problem, Req, targets):
     print("port1 validation passed")
 
 
-def load_test_cases():
-    """Load the five datasets and make the 15 test cases (3 return targets each)."""
+def orlib_frontier_variance(dataset: str, Rmin: float) -> float:
+    """Optimal variance at Rmin, interpolated from the OR-Library frontier (portef files)."""
+    frontier = np.loadtxt(DATA_DIRECTORY / f"portef{dataset.removeprefix('port')}.txt")
+    frontier = frontier[np.argsort(frontier[:, 0])]
+    returns, variances = frontier[:, 0], frontier[:, 1]
+    # Low targets: the minimum-variance portfolio already meets them.
+    if Rmin <= returns[np.argmin(variances)]:
+        return float(variances.min())
+    return float(np.interp(Rmin, returns, variances))
+
+
+def load_test_cases() -> list[tuple]:
+    """Return the 15 test cases as (case_name, problem, Rmin, optimal variance)."""
     test_cases = []
     for dataset in DATASETS:
         problem = PortfolioData.load_data(DATA_DIRECTORY / f"{dataset}.txt")
-        # target_calculations does not use Rmin, so None is fine here.
+        # Rmin is not needed for the targets, so None is fine.
         Req, targets = ESBase(problem, None).target_calculations(problem.mean_return)
 
         if dataset == "port1":
@@ -65,132 +81,111 @@ def load_test_cases():
     return test_cases
 
 
-def orlib_frontier_variance(dataset, Rmin):
-    """
-    Optimal variance at return Rmin, read from the OR-Library efficient frontier.
-    Each portef file holds 2000 (mean return, variance) points of the exact
-    long-only frontier; we interpolate linearly between neighbouring points.
-    """
-    frontier = np.loadtxt(DATA_DIRECTORY / f"portef{dataset.removeprefix('port')}.txt")
-    frontier = frontier[np.argsort(frontier[:, 0])]
-    returns, variances = frontier[:, 0], frontier[:, 1]
-    # Below the minimum-variance portfolio's return the return constraint is not active.
-    if Rmin <= returns[np.argmin(variances)]:
-        return float(variances.min())
-    return float(np.interp(Rmin, returns, variances))
+# --- Running the experiments ---
+
+def run_single_trial(case_name: str, problem: PortfolioData, Rmin: float, ref_variance: float,
+                     variant_name: str, seed: int) -> tuple[dict, np.ndarray]:
+    """Run one variant with one seed. Returns the result row and best-so-far history."""
+    es = VARIANTS[variant_name](problem, Rmin, seed=seed)
+    result = es.run()
+
+    row = {
+        "case_name": case_name,
+        "variant": variant_name,
+        "seed": seed,
+        "assets": es.n,
+        "Rmin": Rmin,
+        "valid": es.is_feasible(result.weights),
+        "variance": result.variance,
+        "expected_return": result.expected_return,
+        "evaluations": result.evaluations,
+        "runtime": result.runtime,
+        "ref_variance": ref_variance,
+        "gap_percent": 100 * (result.variance / ref_variance - 1),
+        "weights": " ".join(f"{w:.10g}" for w in result.weights),
+    }
+    return row, result.history
 
 
-def last_improvement(history):
-    """Evaluation number (1-based) at which the best-so-far value last improved."""
-    return int(np.argmax(history <= history[-1])) + 1
-
-
-def run_case(case_name, problem, Rmin, ref_variance):
-    """
-    Run every ES variant on one test case, once per seed.
-    Returns one row per run, plus the best-so-far history of every run.
-    """
+def run_all_experiments(test_cases: list[tuple]) -> tuple[list[dict], dict]:
+    """Run every variant, case and seed. Returns all rows and the convergence histories."""
     rows = []
-    histories = {}
+    convergence_histories = {name: [] for name in VARIANTS}
+    total_runs = len(test_cases) * len(VARIANTS) * len(SEEDS)
+    run_counter = 0
 
-    for name, variant in VARIANTS.items():
-        histories[name] = []
-        for seed in SEEDS:
-            es = variant(problem, Rmin, seed=seed)
-            result = es.run()
-            valid = es.is_feasible(result.weights)
+    for case_name, problem, Rmin, ref_variance in test_cases:
+        for variant_name in VARIANTS:
+            for seed in SEEDS:
+                run_counter += 1
+                row, history = run_single_trial(case_name, problem, Rmin, ref_variance,
+                                                variant_name, seed)
+                rows.append(row)
+                if case_name == CONVERGENCE_CASE:
+                    convergence_histories[variant_name].append(history)
 
-            rows.append({
-                "case_name": case_name,
-                "variant": name,
-                "seed": seed,
-                "assets": es.n,
-                "Rmin": Rmin,
-                "valid": valid,
-                "variance": result.variance,
-                "expected_return": result.expected_return,
-                "evaluations": result.evaluations,
-                "runtime": result.runtime,
-                "ref_variance": ref_variance,
-                "gap_percent": 100 * (result.variance / ref_variance - 1),
-                "last_improvement": last_improvement(result.history),
-                "weights": " ".join(f"{w:.10g}" for w in result.weights),
-            })
-            histories[name].append(result.history)
+                print(f"[{run_counter}/{total_runs}] {case_name} | {variant_name} | seed {seed}"
+                      f" | variance {row['variance']:.4e} | gap {row['gap_percent']:.2f}%"
+                      f" | valid {row['valid']} | {row['runtime']:.2f} s")
 
-            print(f"{case_name:<16} {name:<16} seed {seed}  variance {result.variance:.6e}  "
-                  f"valid {valid}  {result.runtime:.2f} s")
-
-    return rows, histories
+    return rows, convergence_histories
 
 
-def summarize(rows):
-    """
-    Make one summary row per test case and variant.
-    Variance statistics use valid runs only, runtime uses all runs.
-    """
+# --- Summary and statistics ---
+
+def summarize(rows: list[dict]) -> list[dict]:
+    """One row per case and variant. Variance stats use valid runs only."""
+    groups = {}
+    for row in rows:
+        groups.setdefault((row["case_name"], row["variant"]), []).append(row)
+
     summary = []
-    for i in range(0, len(rows), len(SEEDS)):
-        runs = rows[i:i + len(SEEDS)]   # rows come in blocks of one variant on one case
-        valid_runs = [r for r in runs if r["valid"]]
-        variances = [r["variance"] for r in valid_runs]
-        runtimes = [r["runtime"] for r in runs]
-        case_name = runs[0]["case_name"]
+    for (case_name, variant_name), runs in groups.items():
+        variances = [r["variance"] for r in runs if r["valid"]]
         ref_variance = runs[0]["ref_variance"]
+        best_variance = np.min(variances) if variances else np.nan
         mean_variance = np.mean(variances) if variances else np.nan
 
         summary.append({
             "case_name": case_name,
-            "variant": runs[0]["variant"],
+            "variant": variant_name,
             "assets": runs[0]["assets"],
             "Rmin": runs[0]["Rmin"],
-            "best_variance": np.min(variances) if variances else np.nan,
+            "best_variance": best_variance,
             "mean_variance": mean_variance,
             "std_variance": np.std(variances, ddof=1) if len(variances) > 1 else np.nan,
             "valid_runs": f"{len(variances)}/{len(runs)}",
-            "mean_runtime": np.mean(runtimes),
+            "mean_runtime": np.mean([r["runtime"] for r in runs]),
             "ref_variance": ref_variance,
-            "best_gap_percent": 100 * (np.min(variances) / ref_variance - 1) if variances else np.nan,
+            "best_gap_percent": 100 * (best_variance / ref_variance - 1),
             "mean_gap_percent": 100 * (mean_variance / ref_variance - 1),
-            "mean_last_improvement": np.mean([r["last_improvement"] for r in runs]),
         })
 
     return summary
 
 
-def wilcoxon_signed_rank(x, y):
-    """
-    Two-sided paired Wilcoxon signed-rank test (scipy), zero differences dropped.
-    Returns (W+, p-value, number of non-zero pairs).
-    """
+def wilcoxon_signed_rank(x: list[float], y: list[float]) -> tuple[float, int]:
+    """Paired Wilcoxon test. Returns (p-value, number of non-zero pairs)."""
     d = np.subtract(x, y)
     d = d[d != 0]
-    if d.size == 0:   # identical results on every seed: scipy would return NaN
-        return 0.0, 1.0, 0
-    p_value = wilcoxon(d, alternative="two-sided").pvalue
-    w_plus = rankdata(np.abs(d))[d > 0].sum()   # scipy reports min(W+, W-), so compute W+ here
-    return float(w_plus), float(p_value), d.size
+    if d.size == 0:   # all pairs equal, scipy would return NaN
+        return 1.0, 0
+    return float(wilcoxon(d, alternative="two-sided").pvalue), d.size
 
 
-def compare_variants(rows, alpha=0.05):
-    """
-    Test every pair in COMPARISONS on every test case.
-    Runs are paired by seed: with the same seed both variants start from the same
-    initial parents and draw the same random numbers until they first differ.
-    """
+def compare_variants(rows: list[dict]) -> list[dict]:
+    """Wilcoxon test for every pair in COMPARISONS on every case, paired by seed."""
+    variance = {(r["case_name"], r["variant"], r["seed"]): r["variance"] for r in rows}
+    case_names = list(dict.fromkeys(r["case_name"] for r in rows))
     tests = []
-    for name_a, name_b in COMPARISONS:
-        for case_name in dict.fromkeys(r["case_name"] for r in rows):
-            a = {r["seed"]: r["variance"] for r in rows if r["case_name"] == case_name and r["variant"] == name_a}
-            b = {r["seed"]: r["variance"] for r in rows if r["case_name"] == case_name and r["variant"] == name_b}
-            seeds = sorted(a.keys() & b.keys())
-            if not seeds:
-                continue
-            x = [a[s] for s in seeds]
-            y = [b[s] for s in seeds]
-            w_plus, p_value, pairs = wilcoxon_signed_rank(x, y)
 
-            if p_value >= alpha:
+    for name_a, name_b in COMPARISONS:
+        for case_name in case_names:
+            x = [variance[case_name, name_a, s] for s in SEEDS]
+            y = [variance[case_name, name_b, s] for s in SEEDS]
+            p_value, pairs = wilcoxon_signed_rank(x, y)
+
+            if p_value >= SIGNIFICANCE_LEVEL:
                 better = "no significant difference"
             elif np.median(np.subtract(x, y)) < 0:
                 better = name_a
@@ -201,17 +196,17 @@ def compare_variants(rows, alpha=0.05):
                 "case_name": case_name,
                 "variant_a": name_a,
                 "variant_b": name_b,
-                "a_mean_variance": np.mean(x),
-                "b_mean_variance": np.mean(y),
                 "pairs": pairs,
-                "W_plus": w_plus,
                 "p_value": p_value,
                 "better_at_0.05": better,
             })
+
     return tests
 
 
-def write_csv(rows, file_path):
+# --- Output ---
+
+def write_csv(rows: list[dict], file_path: Path) -> None:
     with open(file_path, "w", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=rows[0].keys())
         writer.writeheader()
@@ -219,8 +214,8 @@ def write_csv(rows, file_path):
     print(f"Saved {file_path}")
 
 
-def save_convergence(histories, case_name):
-    """Save the best-so-far logs and plot the mean over the seeds for every variant."""
+def save_convergence(histories: dict, case_name: str) -> None:
+    """Save the best-so-far logs and plot the mean per variant."""
     log_path = RESULTS_DIRECTORY / f"convergence_{case_name}.npz"
     np.savez_compressed(log_path, **histories)
     print(f"Saved {log_path}")
@@ -245,37 +240,7 @@ def save_convergence(histories, case_name):
     print(f"Saved {plot_path}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Benchmark the ES variants.")
-    parser.add_argument("--case", help="run a single test case, e.g. port1_alpha050")
-    args = parser.parse_args()
-
-    RESULTS_DIRECTORY.mkdir(exist_ok=True)
-    PLOTS_DIRECTORY.mkdir(exist_ok=True)
-
-    test_cases = load_test_cases()
-    if args.case:
-        test_cases = [case for case in test_cases if case[0] == args.case]
-        if not test_cases:
-            raise ValueError(f"Unknown test case {args.case}")
-
-    print(f"{len(test_cases)} test case(s), {len(SEEDS)} seeds, {BUDGET} evaluations per run\n")
-
-    all_rows = []
-    for case_name, problem, Rmin, ref_variance in test_cases:
-        rows, histories = run_case(case_name, problem, Rmin, ref_variance)
-        all_rows += rows
-        if case_name == CONVERGENCE_CASE:
-            save_convergence(histories, case_name)
-
-    # A single case gets its own file names so it does not overwrite the full run.
-    suffix = f"_{args.case}" if args.case else ""
-    summary = summarize(all_rows)
-    tests = compare_variants(all_rows)
-    write_csv(all_rows, RESULTS_DIRECTORY / f"raw_runs{suffix}.csv")
-    write_csv(summary, RESULTS_DIRECTORY / f"summary{suffix}.csv")
-    write_csv(tests, RESULTS_DIRECTORY / f"stat_tests{suffix}.csv")
-
+def print_summary(summary: list[dict]) -> None:
     print(f"\n{'case':<16} {'variant':<16} {'best':>12} {'mean':>12} {'std':>12} "
           f"{'gap':>8} {'valid':>6} {'time':>7}")
     for row in summary:
@@ -284,12 +249,37 @@ def main():
               f"{row['std_variance']:>12.4e} {row['mean_gap_percent']:>7.2f}% "
               f"{row['valid_runs']:>6} {row['mean_runtime']:>6.2f}s")
 
-    for name_a, name_b in COMPARISONS:
-        print(f"\n{name_a} vs {name_b}")
-        print(f"{'case':<16} {'p-value':>8}  better at 0.05")
-        for test in tests:
-            if test["variant_a"] == name_a and test["variant_b"] == name_b:
-                print(f"{test['case_name']:<16} {test['p_value']:>8.4f}  {test['better_at_0.05']}")
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Benchmark the ES variants.")
+    parser.add_argument("--case", help="run a single test case, e.g. port1_alpha050")
+    args = parser.parse_args()
+
+    RESULTS_DIRECTORY.mkdir(exist_ok=True)
+    PLOTS_DIRECTORY.mkdir(exist_ok=True)
+
+    test_cases = load_test_cases()
+    if args.case:   # keep only the requested case (case[0] is its name)
+        test_cases = [case for case in test_cases if case[0] == args.case]
+    if not test_cases:
+        raise ValueError(f"Unknown test case {args.case}")
+
+    print(f"{len(test_cases)} test case(s), {len(VARIANTS)} variants, {len(SEEDS)} seeds, "
+          f"{BUDGET} evaluations per run\n")
+
+    rows, convergence_histories = run_all_experiments(test_cases)
+    summary = summarize(rows)
+    tests = compare_variants(rows)
+
+    # Single-case runs get their own file names.
+    suffix = f"_{args.case}" if args.case else ""
+    write_csv(rows, RESULTS_DIRECTORY / f"raw_runs{suffix}.csv")
+    write_csv(summary, RESULTS_DIRECTORY / f"summary{suffix}.csv")
+    write_csv(tests, RESULTS_DIRECTORY / f"stat_tests{suffix}.csv")
+    if any(convergence_histories.values()):
+        save_convergence(convergence_histories, CONVERGENCE_CASE)
+
+    print_summary(summary)
 
 
 if __name__ == "__main__":
