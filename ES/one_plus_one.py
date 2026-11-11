@@ -23,7 +23,7 @@ class OnePlusOneES(ESBase):
 
         sigma = 0.1 / np.sqrt(self.n)
         
-        while self.evaluations < max_evaluations:
+        while self.num_evaluations < max_evaluations:
             
             child = self.mutate(parent, sigma)
             child_variance = self.evaluate(child)

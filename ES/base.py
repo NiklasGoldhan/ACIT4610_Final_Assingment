@@ -65,7 +65,7 @@ class ESRunResult:
     weights: np.ndarray
     variance: float
     expected_return: float
-    evaluations: int
+    num_evaluations: int
     history: np.ndarray
     runtime: float
 
@@ -172,7 +172,7 @@ class ESBase:
         """Start a new run with an empty archive and no evaluations used."""
         self.best_weights = None
         self.best_variance = np.inf
-        self.evaluations = 0
+        self.num_evaluations = 0
         self.history = []
 
 
@@ -183,7 +183,7 @@ class ESBase:
         the best variance after every evaluation (used for convergence plots).
         """
         variance = self.variance(weights)
-        self.evaluations += 1
+        self.num_evaluations += 1
         if variance < self.best_variance:
             self.best_variance = variance
             self.best_weights = weights.copy()
@@ -197,7 +197,7 @@ class ESBase:
             weights=self.best_weights,
             variance=float(self.best_variance),
             expected_return=float(self.expected_return(self.best_weights)),
-            evaluations=self.evaluations,
+            num_evaluations=self.num_evaluations,
             history=np.array(self.history),
             runtime=time.perf_counter() - start_time,
         )

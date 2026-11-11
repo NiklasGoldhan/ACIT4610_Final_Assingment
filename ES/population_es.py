@@ -54,9 +54,9 @@ class PopulationES(ESBase):
             parent_sigmas.append(np.full(self.n, 0.1 / np.sqrt(self.n)))
             parent_variances.append(self.evaluate(weights))
 
-        while self.evaluations < max_evaluations:
+        while self.num_evaluations < max_evaluations:
             # The last generation can be smaller than lambda so we stop exactly at the budget.
-            num_children = min(self.lam, max_evaluations - self.evaluations)
+            num_children = min(self.lam, max_evaluations - self.num_evaluations)
 
             children = []
             child_sigmas = []
