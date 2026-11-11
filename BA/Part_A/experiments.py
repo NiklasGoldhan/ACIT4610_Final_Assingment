@@ -7,6 +7,7 @@ from tsplib_parser import TSPInstance
 from operators import reverse_operator, swap_operator
 from distance import TripEval, create_distance_matrix
 from bees_algorithm import BeesAlgorithm
+from visualization import (generate_summary_table,plot_convergence,plot_best_tour)
 
 
 class ExperimentConfig:
@@ -164,9 +165,32 @@ def save_results_to_disk(
 
 if __name__ == "__main__":
     config = ExperimentConfig()
-    print("Starting Part A experiments (120 runs: 6 instances x 2 operators x 10 seeds)...")
-    
+    print(
+        "Starting Part A experiments (120 runs: 6 instances x 2 operators x 10"
+        " seeds)..."
+    )
+
     results = run_all_experiments(config)
+
     save_results_to_disk(results)
-    
-    print("\nAll 120 TSP experiments completed successfully!")
+    print("\nAll 120 TSP experiments completed and saved!")
+
+    #---AI Generated Start---
+    print("\nGenerating figures and summary tables...")
+
+    csv_file = "BA/Part_A/results/results_summary.csv"
+    json_file = "BA/Part_A/results/results_detailed.json"
+    results_dir = "BA/Part_A/results"
+
+    summary_df = generate_summary_table(csv_file)
+    plot_convergence("berlin52", results, optimal_value=7542, output_dir=results_dir)
+    plot_convergence("ch150", results, optimal_value=6528, output_dir=results_dir)
+    plot_best_tour(
+        "berlin52",
+        "BA/Part_A/data/berlin52.tsp",
+        results,
+        output_dir=results_dir,
+    )
+
+    print("\nAll Part A experiments, tables, and plots are complete!")
+    #---AI Generated End---

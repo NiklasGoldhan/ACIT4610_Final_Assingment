@@ -1,3 +1,7 @@
 .vscode
 .venv
-__pycache__
+__pycache__/
+*.pyc
+
+# Benchmark detailed results (>100MB exceeds GitHub limit)
+BA/Part_A/results/results_detailed.json
