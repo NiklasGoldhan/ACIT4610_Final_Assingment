@@ -29,11 +29,11 @@ python BA/Part_A/experiments.py
 ### Parameters (`experiments.py`)
 Configured in `ExperimentConfig` in `BA/Part_A/experiments.py`:
 - `max_evals`: Maximum objective function evaluations per run budget (default: `30_000`, strictly terminates at budget)
-- `population_size`: Total scout bees (n, default: `40`)
-- `selected_sites`: Number of best sites selected (m, default: `10`)
-- `elite_sites`: Number of elite sites among selected (e, default: `3`)
-- `recruited_elite`: Forager bees recruited for each elite site (ne, default: `15`)
-- `recruited_selected`: Forager bees recruited for remaining non-elite sites (ns, default: `5`)
+- `population_size`: Total scout bees (n)
+- `selected_sites`: Number of best sites selected (m)
+- `elite_sites`: Number of elite sites among selected (e)
+- `recruited_elite`: Forager bees recruited for each elite site (ne)
+- `recruited_selected`: Forager bees recruited for remaining non-elite sites (ns)
 - `seeds`: 10 independent random seeds (default: `[1, 2, 4, 8, 16, 32, 64, 128, 256, 512]`)
 - `instances`: Benchmark TSPLIB instances from `BA/Part_A/data/` (`eil51`, `berlin52`, `st70`, `eil76`, `kroA100`, `ch150`)
 - `operators`: Local neighborhood search operators evaluated (`swap`, `reversal`)
@@ -55,7 +55,7 @@ ALGORITHM: RunAllExperiments
    - Instances   <- [(eil51, 426), (berlin52, 7542), (st70, 675), (eil76, 538), (kroA100, 21282), (ch150, 6528)]
    - Operators   <- [swap, reversal]
    - Seeds       <- [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
-   - Parameters  <- n = 40, m = 10, e = 3, ne = 15, ns = 5, max_evals = 30000
+   - Parameters  <- n = 20, m = 6, e = 2, ne = 20, ns = 8, max_evals = 30000
    - Total Runs  <- 120 (6 instances times 2 operators times 10 seeds)
 
 2. EXECUTE EXPERIMENTS:
@@ -171,11 +171,11 @@ ba = BeesAlgorithm(
     num_cities=len(instance.dataset),
     evaluator=evaluator,
     operator=reverse_operator,
-    population_size=40,
-    selected_sites=10,
-    elite_sites=3,
-    recruited_elite=15,
-    recruited_selected=5,
+    population_size=20,
+    selected_sites=6,
+    elite_sites=2,
+    recruited_elite=20,
+    recruited_selected=8,
 )
 best_trip, best_len, history = ba.run()
 print(f"Optimal: 7542 | Best Found: {best_len} | Gap: {100.0 * (best_len - 7542) / 7542:.2f}%")
@@ -195,11 +195,11 @@ ba = BeesAlgorithm(
     num_cities=52,
     evaluator=evaluator,
     operator=reverse_operator,    # swap_operator or reverse_operator
-    population_size=40,           # n: Total scout bees
-    selected_sites=10,            # m: Number of best sites selected
-    elite_sites=3,                # e: Elite sites subset
-    recruited_elite=15,           # ne: Foragers per elite site
-    recruited_selected=5          # ns: Foragers per non-elite selected site
+    population_size=20,           # n: Total scout bees
+    selected_sites=6,             # m: Number of best sites selected
+    elite_sites=2,                # e: Elite sites subset
+    recruited_elite=20,           # ne: Foragers per elite site
+    recruited_selected=8          # ns: Foragers per non-elite selected site
 )
 ```
 

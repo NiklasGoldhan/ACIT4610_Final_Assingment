@@ -15,11 +15,11 @@ class BeesAlgorithm:
         num_cities: int,
         evaluator: TripEval,
         operator: Callable[[list[int]], list[int]],
-        population_size: int = 30,    # n: Total scout bees
-        selected_sites: int = 10,     # m: Number of best sites selected
-        elite_sites: int = 3,         # e: Number of elite sites (subset of m)
-        recruited_elite: int = 10,    # ne: Foragers recruited for each elite site
-        recruited_selected: int = 5   # ns: Foragers recruited for remaining (m - e) sites
+        population_size: int,    # n: Total scout bees
+        selected_sites: int,     # m: Number of best sites selected
+        elite_sites: int,        # e: Number of elite sites (subset of m)
+        recruited_elite: int,    # ne: Foragers recruited for each elite site
+        recruited_selected: int  # ns: Foragers recruited for remaining (m - e) sites
     ):
         self.num_cities = num_cities
         self.evaluator = evaluator
