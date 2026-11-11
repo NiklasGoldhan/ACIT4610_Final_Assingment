@@ -14,11 +14,11 @@ class ExperimentConfig:
     def __init__(
         self,
         seeds: list[int] = None,
-        population_size: int = 40,
-        selected_sites: int = 10,
-        elite_sites: int = 3,
-        recruited_elite: int = 15,
-        recruited_selected: int = 5,
+        population_size: int = 20,
+        selected_sites: int = 6,
+        elite_sites: int = 2,
+        recruited_elite: int = 20,
+        recruited_selected: int = 8,
         max_evals: int = 30_000,
     ):
         self.seeds = seeds if seeds is not None else [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
@@ -79,6 +79,11 @@ def run_single_trial(
     )
 
     best_trip, best_length, history = ba.run()
+
+    # Assignment PDF Check: Validate that every returned tour contains every city once
+    assert len(best_trip) == len(dataset), "Tour length mismatch!"
+    assert len(set(best_trip)) == len(dataset), "Tour contains duplicate cities!"
+    assert best_trip[0] == 0, "City 1 is not the starting depot!"
 
     runtime = time.perf_counter() - start_time
 
