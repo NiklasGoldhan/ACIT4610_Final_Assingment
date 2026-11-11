@@ -71,8 +71,37 @@ The `results/` and `plots/` folders are created when the benchmark runs.
 - `results/raw_runs.csv`: One row per run: seed, variance, return, evaluations, runtime, gap, weights
 - `results/summary.csv`: Per case and variant: best, mean and std of variance, valid runs, mean runtime, gap
 - `results/stat_tests.csv`: Paired Wilcoxon signed-rank tests between the variants
-- `results/convergence_port5_alpha050.npz`: Best-so-far log for every run
-- `plots/convergence_port5_alpha050.png`: Mean best-so-far variance against evaluations
+- `results/best_candidates.csv` and `plots/best_candidates.png`: One row per case,
+  with each variant's lowest feasible variance across seeds and the corresponding seed.
+  The image highlights the lowest variance in each case, including exact ties. If several
+  seeds give exactly the same best variance within a variant, the smallest seed is shown.
+  Winner selection uses full precision; displayed values are rounded, and the CSV retains
+  full precision.
+  Match the case, variant, and seed to `raw_runs.csv` to retrieve the portfolio weights.
+- `plots/comparison_heatmaps.png`: Two heatmaps side by side, with all dataset–alpha
+  combinations as rows and the three ES variants as columns. The left panel compares
+  best variance across seeds; the right compares mean variance across seeds. Both use
+  `100 * (variant_value / lowest_case_value - 1)`, calculated separately for each panel,
+  and share the same color scale. Zero marks the best tested value, not a known optimum.
+  Tiny positive differences that would round to zero are displayed as `<0.01%`.
+- `results/comparison_heatmaps.csv`: The percentages underlying both heatmap panels.
+  Missing results, and undefined percentages for positive values against a zero baseline,
+  are shown as N/A in the figures and NaN in the CSVs.
+- `results/convergence_portX_alpha050.npz`: Best-so-far histories for each of the five
+  datasets (`X = 1, ..., 5`), with 10 seed histories per ES variant.
+- `plots/convergence_portX_alpha050.png`: Five convergence plots, one per dataset at
+  alpha = 0.50. Each plot shows three lines: mean best-so-far variance across 10 seeds
+  for each ES variant, against objective evaluations. The variance axis is logarithmic.
+  This includes the required `port5_alpha050` plot.
+
+When using `--case`, the benchmark saves a convergence plot and history file for that
+selected case, including targets other than alpha = 0.50. The new table and heatmaps
+also contain only the selected case, with its name appended to their filenames.
+
+Variance summaries and the new illustrations use only valid runs with finite variance;
+mean runtime includes all runs. The best-results table shows the strongest solution
+found, while the mean heatmap shows typical performance. Highlighted differences are
+descriptive and do not establish statistical significance.
 
 ## Use of AI
 

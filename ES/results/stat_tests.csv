@@ -1,0 +1,46 @@
+case_name,variant_a,variant_b,pairs,p_value,better_at_0.05
+port1_alpha025,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port1_alpha050,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port1_alpha075,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port2_alpha025,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port2_alpha050,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port2_alpha075,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port3_alpha025,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port3_alpha050,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port3_alpha075,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port4_alpha025,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port4_alpha050,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port4_alpha075,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port5_alpha025,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port5_alpha050,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port5_alpha075,(1+1)-ES,(mu+lambda)-ES,10,0.001953125,(mu+lambda)-ES
+port1_alpha025,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port1_alpha050,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port1_alpha075,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port2_alpha025,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port2_alpha050,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port2_alpha075,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port3_alpha025,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port3_alpha050,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port3_alpha075,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port4_alpha025,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port4_alpha050,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port4_alpha075,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port5_alpha025,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port5_alpha050,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port5_alpha075,(1+1)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port1_alpha025,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.625,no significant difference
+port1_alpha050,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port1_alpha075,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.001953125,"(mu,lambda)-ES"
+port2_alpha025,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.16015625,no significant difference
+port2_alpha050,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.232421875,no significant difference
+port2_alpha075,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.16015625,no significant difference
+port3_alpha025,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.193359375,no significant difference
+port3_alpha050,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.064453125,no significant difference
+port3_alpha075,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.130859375,no significant difference
+port4_alpha025,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.00390625,(mu+lambda)-ES
+port4_alpha050,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.10546875,no significant difference
+port4_alpha075,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.193359375,no significant difference
+port5_alpha025,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.232421875,no significant difference
+port5_alpha050,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.16015625,no significant difference
+port5_alpha075,(mu+lambda)-ES,"(mu,lambda)-ES",10,0.6953125,no significant difference

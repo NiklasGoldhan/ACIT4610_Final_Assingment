@@ -19,7 +19,7 @@ PLOTS_DIRECTORY = ES_DIRECTORY / "plots"
 
 DATASETS = ["port1", "port2", "port3", "port4", "port5"]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-CONVERGENCE_CASE = "port5_alpha050"
+CONVERGENCE_CASES = {f"{dataset}_alpha050" for dataset in DATASETS}
 SIGNIFICANCE_LEVEL = 0.05
 
 VARIANTS = {
@@ -65,7 +65,6 @@ def load_test_cases() -> list[tuple]:
     test_cases = []
     for dataset in DATASETS:
         problem = PortfolioData.load_data(DATA_DIRECTORY / f"{dataset}.txt")
-        # Rmin is not needed for the targets, so None is fine.
         Req, targets = ESBase.target_calculations(problem.mean_return)
         if dataset == "port1":
             parser_validation_port1(problem, Req, targets)
@@ -95,7 +94,7 @@ def run_single_trial(case_name: str, problem: PortfolioData, Rmin: float, ref_va
         "valid": es.is_feasible(result.weights),
         "variance": result.variance,
         "expected_return": result.expected_return,
-        "evaluations": result.evaluations,
+        "evaluations": result.num_evaluations,
         "runtime": result.runtime,
         "ref_variance": ref_variance,
         "gap_percent": 100 * (result.variance / ref_variance - 1),
@@ -105,9 +104,14 @@ def run_single_trial(case_name: str, problem: PortfolioData, Rmin: float, ref_va
 
 
 def run_all_experiments(test_cases: list[tuple]) -> tuple[list[dict], dict]:
-    """Run every variant, case and seed. Returns all rows and the convergence histories."""
+    """Run all trials and keep histories per plotted case, variant, and seed."""
     rows = []
-    convergence_histories = {name: [] for name in VARIANTS}
+    # Full experiment: one alpha050 plot per dataset. A single-case run plots that case.
+    convergence_histories = {
+        case_name: {name: [] for name in VARIANTS}
+        for case_name, *_ in test_cases
+        if case_name in CONVERGENCE_CASES or len(test_cases) == 1
+    }
     total_runs = len(test_cases) * len(VARIANTS) * len(SEEDS)
     run_counter = 0
 
@@ -118,8 +122,8 @@ def run_all_experiments(test_cases: list[tuple]) -> tuple[list[dict], dict]:
                 row, history = run_single_trial(case_name, problem, Rmin, ref_variance,
                                                 variant_name, seed)
                 rows.append(row)
-                if case_name == CONVERGENCE_CASE:
-                    convergence_histories[variant_name].append(history)
+                if case_name in convergence_histories:
+                    convergence_histories[case_name][variant_name].append(history)
 
                 print(f"[{run_counter}/{total_runs}] {case_name} | {variant_name} | seed {seed}"
                       f" | variance {row['variance']:.4e} | gap {row['gap_percent']:.2f}%"
@@ -138,7 +142,8 @@ def summarize(rows: list[dict]) -> list[dict]:
 
     summary = []
     for (case_name, variant_name), runs in groups.items():
-        variances = [r["variance"] for r in runs if r["valid"]]
+        variances = [r["variance"] for r in runs
+                     if r["valid"] and np.isfinite(r["variance"])]
         ref_variance = runs[0]["ref_variance"]
         best_variance = np.min(variances) if variances else np.nan
         mean_variance = np.mean(variances) if variances else np.nan
@@ -211,6 +216,132 @@ def write_csv(rows: list[dict], file_path: Path) -> None:
     print(f"Saved {file_path}")
 
 
+# AI-assisted illustrations: best candidate table and best/mean comparison heatmaps.
+def save_best_results_table(rows: list[dict], suffix: str = "") -> None:
+    """Save each variant's best feasible variance and seed for every available case."""
+    case_names = sorted({r["case_name"] for r in rows})
+    best = {}
+    for row in rows:
+        if not row["valid"] or not np.isfinite(row["variance"]):
+            continue
+        key = row["case_name"], row["variant"]
+        # Equal variances within a variant select the smallest seed reproducibly.
+        if key not in best or (row["variance"], row["seed"]) < (best[key]["variance"], best[key]["seed"]):
+            best[key] = row
+
+    table_rows, csv_rows, winners = [], [], []
+    for case in case_names:
+        candidates = [best[case, name]["variance"] for name in VARIANTS if (case, name) in best]
+        lowest = min(candidates) if candidates else np.nan
+        table_row, csv_row, winning_columns = [case], {"case_name": case}, []
+        winning_names = []
+        for index, name in enumerate(VARIANTS):
+            candidate = best.get((case, name))
+            value = candidate["variance"] if candidate else np.nan
+            seed = candidate["seed"] if candidate else ""
+            csv_row[f"{name}_best_variance"] = value
+            csv_row[f"{name}_seed"] = seed
+            table_row.extend([f"{value:.8e}" if candidate else "N/A", str(seed) if candidate else "N/A"])
+            if value == lowest:
+                winning_columns.extend([1 + 2 * index, 2 + 2 * index])
+                winning_names.append(name)
+        csv_row["best_variants"] = " / ".join(winning_names)
+        csv_rows.append(csv_row)
+        table_rows.append(table_row)
+        winners.append(winning_columns)
+    write_csv(csv_rows, RESULTS_DIRECTORY / f"best_candidates{suffix}.csv")
+
+    headers = ["Case"]
+    for name in VARIANTS:
+        headers.extend([f"{name}\nBest variance", "Seed"])
+    fig, ax = plt.subplots(figsize=(15, max(3, 0.38 * len(case_names) + 2)))
+    ax.axis("off")
+    table = ax.table(cellText=table_rows, colLabels=headers, cellLoc="center",
+                     colWidths=[0.19, 0.22, 0.05, 0.22, 0.05, 0.22, 0.05],
+                     bbox=[0, 0, 1, 1])
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    for column in range(len(headers)):
+        table[0, column].set_facecolor("#e4e9ef")
+        table[0, column].get_text().set_weight("bold")
+        table[0, column].set_height(table[0, column].get_height() * 1.6)
+    for row_index, columns in enumerate(winners, start=1):
+        for column in columns:
+            table[row_index, column].set_facecolor("#d7efda")
+            table[row_index, column].get_text().set_weight("bold")
+    ax.set_title("Best feasible candidates across seeds", pad=18)
+    fig.text(0.5, 0.02, "Green cells: lowest variance per case (including exact ties). "
+             "Seed identifies the portfolio in raw_runs.csv.\n"
+             "Variance uses squared decimal returns. N/A: no valid, finite result. "
+             "Within-variant ties select the smallest seed.\n"
+             "Winners use full precision; displayed values are rounded.", ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, 0.12, 1, 0.97))
+    path = PLOTS_DIRECTORY / f"best_candidates{suffix}.png"
+    fig.savefig(path, dpi=200)
+    plt.close(fig)
+    print(f"Saved {path}")
+
+
+def save_comparison_heatmaps(summary: list[dict], suffix: str = "") -> None:
+    """Plot best and mean variance differences from each case's best tested value."""
+    case_names = sorted({r["case_name"] for r in summary})
+    lookup = {(r["case_name"], r["variant"]): r for r in summary}
+    differences = []
+    for metric in ("best_variance", "mean_variance"):
+        matrix = np.array([
+            [lookup.get((case, name), {}).get(metric, np.nan) for name in VARIANTS]
+            for case in case_names
+        ], dtype=float)
+        relative = np.full_like(matrix, np.nan)
+        for index, values in enumerate(matrix):
+            finite = np.isfinite(values)
+            if not np.any(finite):
+                continue
+            lowest = np.min(values[finite])
+            if lowest > 0:
+                relative[index, finite] = 100 * (values[finite] / lowest - 1)
+            elif lowest == 0:
+                relative[index, finite & (values == 0)] = 0
+        differences.append(relative)
+    write_csv([
+        {"case_name": case, "variant": name,
+         "best_difference_percent": differences[0][i, j],
+         "mean_difference_percent": differences[1][i, j]}
+        for i, case in enumerate(case_names) for j, name in enumerate(VARIANTS)
+    ], RESULTS_DIRECTORY / f"comparison_heatmaps{suffix}.csv")
+
+    finite_values = np.concatenate([matrix[np.isfinite(matrix)] for matrix in differences])
+    maximum = max(1.0, float(np.max(finite_values))) if finite_values.size else 1.0
+    cmap = plt.get_cmap("YlOrRd").copy()
+    cmap.set_bad("lightgray")
+    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(13, max(4.5, 0.42 * len(case_names) + 2.5)),
+                             layout="constrained")
+    for ax, matrix, title in zip(axes, differences, ("Best variance across seeds", "Mean variance across seeds")):
+        plot = ax.imshow(np.ma.masked_invalid(matrix), aspect="auto", cmap=cmap, vmin=0, vmax=maximum)
+        ax.set_title(title)
+        ax.set_xticks(range(len(VARIANTS)), list(VARIANTS), rotation=12)
+        ax.set_yticks(range(len(case_names)), case_names)
+        ax.set_xlabel("ES variant")
+        for i in range(len(case_names)):
+            for j in range(len(VARIANTS)):
+                value = matrix[i, j]
+                label = f"{value:.2f}%" if np.isfinite(value) else "N/A"
+                if 0 < value < 0.005:
+                    label = "<0.01%"
+                ax.text(j, i, label, ha="center", va="center", fontsize=9,
+                        color="white" if np.isfinite(value) and value > maximum / 2 else "black")
+    axes[0].set_ylabel("Dataset and return target")
+    fig.colorbar(plot, ax=axes, label="Difference from best tested value in that case (%)", shrink=0.85)
+    fig.suptitle("Solution quality: strongest result and typical performance")
+    fig.supxlabel("100 × (variant value / lowest case value − 1), calculated separately for each panel.\n"
+                  "Valid, finite runs only. 0% is best tested; this is not a gap to the true optimum.\n"
+                  "N/A: unavailable result or undefined percentage for a zero baseline.", fontsize=9)
+    path = PLOTS_DIRECTORY / f"comparison_heatmaps{suffix}.png"
+    fig.savefig(path, dpi=200)
+    plt.close(fig)
+    print(f"Saved {path}")
+
+
 def save_convergence(histories: dict, case_name: str) -> None:
     """Save the best-so-far logs and plot the mean per variant."""
     log_path = RESULTS_DIRECTORY / f"convergence_{case_name}.npz"
@@ -273,8 +404,10 @@ def main() -> None:
     write_csv(rows, RESULTS_DIRECTORY / f"raw_runs{suffix}.csv")
     write_csv(summary, RESULTS_DIRECTORY / f"summary{suffix}.csv")
     write_csv(tests, RESULTS_DIRECTORY / f"stat_tests{suffix}.csv")
-    if any(convergence_histories.values()):
-        save_convergence(convergence_histories, CONVERGENCE_CASE)
+    save_best_results_table(rows, suffix)
+    save_comparison_heatmaps(summary, suffix)
+    for case_name, histories in convergence_histories.items():
+        save_convergence(histories, case_name)
 
     print_summary(summary)
 
