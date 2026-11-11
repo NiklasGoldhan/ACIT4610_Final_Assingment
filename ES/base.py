@@ -2,16 +2,16 @@ import time
 import numpy as np
 from dataclasses import dataclass
 
-SEED = 42
-BUDGET = 30_000
-SIGMA_MIN = 1e-8
-SIGMA_MAX = 1.0
-
 """
 Blant annet brukt AI for riktig implementasjon av funksjoner fra oppgaveteksten med
 numpy, til generell feilsøking og for å finne/fjerne bugs og redundant kode.
 This is just a note to myself, I will mark and state which parts later.
 """
+
+SEED = 42
+BUDGET = 30_000
+SIGMA_MIN = 1e-8
+SIGMA_MAX = 1.0
 
 @dataclass(slots=True)
 class PortfolioData:
@@ -20,29 +20,22 @@ class PortfolioData:
     corr: np.ndarray
     cov: np.ndarray
 
-    @staticmethod
-    def build_covariance_matrix(std_values, corr):
-        """Build a covariance matrix from standard deviations and correlations."""
-        return std_values[:, np.newaxis] * std_values[np.newaxis, :] * corr
     
     @classmethod
     def load_data(cls, file_path):
         """
         Load portfolio statistics and construct the covariance matrix.
-        Returns:
-            PortfolioData: Loaded asset statistics and covariance matrix.
+        Returns: PortfolioData: Loaded asset statistics and covariance matrix.
         """
         with open(file_path, 'r') as file:
             lines = [line.split() for line in file if line.strip()]
 
         num_assets = int(lines[0][0])
-        asset_lines = lines[1:num_assets + 1]
-        
+        asset_lines = lines[1:num_assets + 1]        
         mean_return = np.array(
             [float(line[0]) for line in asset_lines],
             dtype=float,
         )
-        
         std_values = np.array(
             [float(line[1]) for line in asset_lines],
             dtype=float,
@@ -56,8 +49,12 @@ class PortfolioData:
             corr[j, i] = correlation
 
         cov = cls.build_covariance_matrix(std_values, corr)
-
         return cls(mean_return, std_values, corr, cov)
+
+    @staticmethod
+    def build_covariance_matrix(std_values, corr):
+        """Build a covariance matrix from standard deviations and correlations."""
+        return std_values[:, np.newaxis] * std_values[np.newaxis, :] * corr
 
 
 @dataclass(slots=True)
@@ -81,11 +78,6 @@ class ESBase:
         else:
             self.rng = np.random.default_rng(SEED)
 
-    
-    def variance(self, weights):
-        """Calculate the portfolio variance given weights."""
-        return weights @ self.cov @ weights
-    
     @staticmethod
     def target_calculations(mean_return):
         """Calculate the minimum required return for a dataset."""
@@ -97,14 +89,17 @@ class ESBase:
             alpha: (1 - alpha) * Req + alpha * Rmax
             for alpha in (0.25, 0.50, 0.75)
         }
-        return Req, return_targets
+        return Req, return_targets 
 
+    # Portfolio calcultations and constraints
+    def variance(self, weights):
+            """Calculate the portfolio variance given weights."""
+            return weights @ self.cov @ weights
     
     def expected_return(self, weights):
         """Calculate the expected return for the given weights."""
         return self.mean_return @ weights
 
-    
     def is_feasible(self, weights):
         """
         Check if the given weights are feasible.
@@ -119,7 +114,6 @@ class ESBase:
             and abs(np.sum(weights) - 1) <= 1e-8
             and self.expected_return(weights) >= self.Rmin - 1e-8
         )
-
     
     def repair(self, weights):
         """Project weights onto the simplex and repair the return constraint."""
@@ -161,20 +155,27 @@ class ESBase:
             )
         return projected
 
-    
+
+    # Initialization and mutation
     def initialize_weights(self):
         """Initialize weights randomly and repair them to ensure feasibility."""
         weights = self.rng.uniform(0, 1, self.n)
         return self.repair(weights)
 
+    def mutate(self, parent, sigma):
+        """Mutate the parent solution to create a child solution."""
+        noise = self.rng.normal(0, 1, self.n)
+        child = parent + sigma * noise
+        return self.repair(child)
 
+
+    # Evaluation and results
     def reset_archive(self):
         """Start a new run with an empty archive and no evaluations used."""
         self.best_weights = None
         self.best_variance = np.inf
         self.num_evaluations = 0
         self.history = []
-
 
     def evaluate(self, weights):
         """
@@ -190,7 +191,6 @@ class ESBase:
         self.history.append(self.best_variance)
         return variance
 
-
     def make_result(self, start_time):
         """Collect the archive into a result for the benchmark."""
         return ESRunResult(
@@ -201,9 +201,3 @@ class ESBase:
             history=np.array(self.history),
             runtime=time.perf_counter() - start_time,
         )
-
-    def mutate(self, parent, sigma):
-        """Mutate the parent solution to create a child solution."""
-        noise = self.rng.normal(0, 1, self.n)
-        child = parent + sigma * noise
-        return self.repair(child)
