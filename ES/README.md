@@ -108,7 +108,7 @@ descriptive and do not establish statistical significance.
 AI tools (Cursor, Claude Code) were used during development of the ES folder.
 
 - `benchmark.py`: largely AI-generated, including the experiment loop, CSV output, the Wilcoxon signed-rank test, plots and the OR-Library gap calculation. It was reviewed and adjusted by the group.
-- `base.py`: written together with AI. AI helped implement the formulas from the assignment in numpy (covariance, simplex projection, return repair).
+- `base.py`: AI helped implement the formulas from the assignment in numpy (covariance, simplex projection, return repair).
 - `population_es.py`: written by the group. AI was used for debugging, review and small fixes (comment and formatting cleanup).
-- `one_plus_one.py`: written by the group. AI was used to find the evaluation-counting bug.
+- `one_plus_one.py`: Reviewed by AI.
 - `README.md`: drafted with AI and edited by the group.

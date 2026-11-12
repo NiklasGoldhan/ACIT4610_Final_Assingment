@@ -2,12 +2,6 @@ import time
 import numpy as np
 from dataclasses import dataclass
 
-"""
-Blant annet brukt AI for riktig implementasjon av funksjoner fra oppgaveteksten med
-numpy, til generell feilsøking og for å finne/fjerne bugs og redundant kode.
-This is just a note to myself, I will mark and state which parts later.
-"""
-
 SEED = 42
 BUDGET = 30_000
 SIGMA_MIN = 1e-8
@@ -93,8 +87,8 @@ class ESBase:
 
     # Portfolio calcultations and constraints
     def variance(self, weights):
-            """Calculate the portfolio variance given weights."""
-            return weights @ self.cov @ weights
+        """Calculate the portfolio variance given weights."""
+        return weights @ self.cov @ weights
     
     def expected_return(self, weights):
         """Calculate the expected return for the given weights."""
