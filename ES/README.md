@@ -43,6 +43,9 @@ uv run python -m ES.benchmark --case port1_alpha050
 
 # Full experiment: 15 cases × 3 variants × 10 seeds (ish 6–7 minutes)
 uv run python -m ES.benchmark
+
+# Rebuild the summary and Wilcoxon tables from results/ without rerunning the experiment
+uv run python -m ES.benchmark --tables-only
 ```
 
 ## Files
@@ -70,7 +73,13 @@ The `results/` and `plots/` folders are created when the benchmark runs.
 
 - `results/raw_runs.csv`: One row per run: seed, variance, return, evaluations, runtime, gap, weights
 - `results/summary.csv`: Per case and variant: best, mean and std of variance, valid runs, mean runtime, gap
+- `plots/summary_table.png`: The summary table for the report, built from `summary.csv`: one row per case and
+  variant with number of assets, R_min, best and mean variance, standard deviation, feasible runs, mean runtime
+  and mean gap to the OR-Library optimum. The lowest mean variance in each case is highlighted.
 - `results/stat_tests.csv`: Paired Wilcoxon signed-rank tests between the variants
+- `plots/wilcoxon_table.png`: The Wilcoxon results for the report, built from `stat_tests.csv`: one row per case
+  with the p-value and the better variant for each of the three variant pairs. Significant results (p < 0.05)
+  are highlighted.
 - `results/best_candidates.csv` and `plots/best_candidates.png`: One row per case,
   with each variant's lowest feasible variance across seeds and the corresponding seed.
   The image highlights the lowest variance in each case, including exact ties. If several
