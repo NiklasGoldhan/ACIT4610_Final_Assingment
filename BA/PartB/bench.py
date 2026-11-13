@@ -1,41 +1,43 @@
-from typing import NamedTuple, Callable, Tuple, List
-from itertools import product
-from algorithm import ba_function
-import numpy as np
+import json
+import record
+from functions import BENCHMARKS
+from pathlib import Path
+
+from experiment import BAParams, Config, run_all
 
 
-class OptimizationTask(NamedTuple):
-    function: Callable[[np.ndarray], np.float64]
-    bounds:   Tuple[float, float]
+# Define config for the runs
+CONFIG = Config(
+    master_seed=42,
+    runs=10,
+    dimensions=(10, 30),
+    max_evals=30_000,
+    output_dir=Path("results"),
+    ba=BAParams(ns=15, ne=2, nb=5, nre=6, nrb=3),
+)
 
-def sphere(x: np.ndarray) -> np.float64:
-    return np.sum(x**2)
 
-def rosenbrock(x: np.ndarray) -> np.float64:
-    xi = x[..., :-1]
-    xnext = x[..., 1:]
-    return np.sum(100 * (xnext - xi**2)**2 + (xi - 1)**2)
+def run_experiment(cfg: Config) -> None:
+    out = cfg.output_dir
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "config.json").write_text(json.dumps(cfg.to_json(), indent=2))
 
-def rastrigin(x: np.ndarray) -> np.float64:
-    dim = x.shape[-1]
-    return 10*dim + np.sum(x**2 - 10*np.cos(2 * np.pi * x))
+    results = run_all(cfg)
 
-def ackley(x: np.ndarray) -> np.float64:
-    dim = x.shape[-1]
-    t1 = -0.2 * np.sqrt(np.sum(x**2, axis=-1) / dim)
-    t2 = np.sum(np.cos((2*np.pi)*x), axis=-1) / dim
-    return -20 * np.exp(t1) - np.exp(t2) + 20 + np.e
+    rows = record.summary_rows(results)
+    record.print_summary(rows)
+    record.write_summary(rows, out)
+    record.write_runs(results, out)
+    record.write_best_so_far(results, out)
 
-tasks = [
-    OptimizationTask(sphere, (-5.12, 5.12)),
-    OptimizationTask(sphere, (-5, 10)),
-    OptimizationTask(rastrigin, (-5.12, 5.12)),
-    OptimizationTask(ackley, (-32.768, 32.768)),
-]
+    record.plot_convergence(results, "rastrigin", 10, out / "rastrigin_convergence.png")
+    record.plot_boxplots(
+        results, [b.name for b in BENCHMARKS], 30, out / "final_boxplots_d30.png"
+    )
 
-dimensions = [10, 30]
+    print("\nExperiments completed.")
+    print(f"Results saved to: {out.resolve()}")
 
-def bench_ba(tasks, dims, runs, ns, ne, nb, nre, nrb):
-    # ai helped flatten to this vvv
-    for task, dim, run in product(tasks, dims, range(runs)):
-        """TODO"""
+
+if __name__ == "__main__":
+    run_experiment(CONFIG)
