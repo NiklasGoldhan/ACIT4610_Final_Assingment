@@ -23,14 +23,14 @@ def rosenbrock(x: np.ndarray) -> np.float64:
 
 
 def rastrigin(x: np.ndarray) -> np.float64:
-    dim = x.shape[-1]
+    dim = x.size
     return 10 * dim + np.sum(x**2 - 10 * np.cos(2 * np.pi * x))
 
 
 def ackley(x: np.ndarray) -> np.float64:
-    dim = x.shape[-1]
-    t1 = -0.2 * np.sqrt(np.sum(x**2, axis=-1) / dim)
-    t2 = np.sum(np.cos((2 * np.pi) * x), axis=-1) / dim
+    dim = x.size
+    t1 = -0.2 * np.sqrt(np.sum(x**2) / dim)
+    t2 = np.sum(np.cos((2 * np.pi) * x)) / dim
     return -20 * np.exp(t1) - np.exp(t2) + 20 + np.e
 
 
