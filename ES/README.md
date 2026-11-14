@@ -80,13 +80,6 @@ The `results/` and `plots/` folders are created when the benchmark runs.
 - `plots/wilcoxon_table.png`: The Wilcoxon results for the report, built from `stat_tests.csv`: one row per case
   with the p-value and the better variant for each of the three variant pairs. Significant results (p < 0.05)
   are highlighted.
-- `results/best_candidates.csv` and `plots/best_candidates.png`: One row per case,
-  with each variant's lowest feasible variance across seeds and the corresponding seed.
-  The image highlights the lowest variance in each case, including exact ties. If several
-  seeds give exactly the same best variance within a variant, the smallest seed is shown.
-  Winner selection uses full precision; displayed values are rounded, and the CSV retains
-  full precision.
-  Match the case, variant, and seed to `raw_runs.csv` to retrieve the portfolio weights.
 - `plots/comparison_heatmaps.png`: Two heatmaps side by side, with all dataset–alpha
   combinations as rows and the three ES variants as columns. The left panel compares
   best variance across seeds; the right compares mean variance across seeds. Both use
@@ -104,12 +97,12 @@ The `results/` and `plots/` folders are created when the benchmark runs.
   This includes the required `port5_alpha050` plot.
 
 When using `--case`, the benchmark saves a convergence plot and history file for that
-selected case, including targets other than alpha = 0.50. The new table and heatmaps
+selected case, including targets other than alpha = 0.50. The summary table and heatmaps
 also contain only the selected case, with its name appended to their filenames.
 
 Variance summaries and the new illustrations use only valid runs with finite variance;
-mean runtime includes all runs. The best-results table shows the strongest solution
-found, while the mean heatmap shows typical performance. Highlighted differences are
+mean runtime includes all runs. The best-variance heatmap shows the strongest solution
+found, while the mean heatmap shows typical performance. Heatmap differences are
 descriptive and do not establish statistical significance.
 
 ## Use of AI

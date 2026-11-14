@@ -361,72 +361,7 @@ def save_wilcoxon_table(tests: list[dict], suffix: str = "") -> None:
     print(f"Saved {path}")
 
 
-# AI-assisted illustrations: best candidate table and best/mean comparison heatmaps.
-def save_best_results_table(rows: list[dict], suffix: str = "") -> None:
-    """Save each variant's best feasible variance and seed for every available case."""
-    case_names = sorted({r["case_name"] for r in rows})
-    best = {}
-    for row in rows:
-        if not row["valid"] or not np.isfinite(row["variance"]):
-            continue
-        key = row["case_name"], row["variant"]
-        # Equal variances within a variant select the smallest seed reproducibly.
-        if key not in best or (row["variance"], row["seed"]) < (best[key]["variance"], best[key]["seed"]):
-            best[key] = row
-
-    table_rows, csv_rows, winners = [], [], []
-    for case in case_names:
-        candidates = [best[case, name]["variance"] for name in VARIANTS if (case, name) in best]
-        lowest = min(candidates) if candidates else np.nan
-        table_row, csv_row, winning_columns = [case], {"case_name": case}, []
-        winning_names = []
-        for index, name in enumerate(VARIANTS):
-            candidate = best.get((case, name))
-            value = candidate["variance"] if candidate else np.nan
-            seed = candidate["seed"] if candidate else ""
-            csv_row[f"{name}_best_variance"] = value
-            csv_row[f"{name}_seed"] = seed
-            table_row.extend([f"{value:.8e}" if candidate else "N/A", str(seed) if candidate else "N/A"])
-            if value == lowest:
-                winning_columns.extend([1 + 2 * index, 2 + 2 * index])
-                winning_names.append(name)
-        csv_row["best_variants"] = " / ".join(winning_names)
-        csv_rows.append(csv_row)
-        table_rows.append(table_row)
-        winners.append(winning_columns)
-    write_csv(csv_rows, RESULTS_DIRECTORY / f"best_candidates{suffix}.csv")
-
-    headers = ["Case"]
-    for name in VARIANTS:
-        headers.extend([f"{name}\nBest variance", "Seed"])
-    fig, ax = plt.subplots(figsize=(15, max(3, 0.38 * len(case_names) + 2)))
-    ax.axis("off")
-    table = ax.table(cellText=table_rows, colLabels=headers, cellLoc="center",
-                     colWidths=[0.19, 0.22, 0.05, 0.22, 0.05, 0.22, 0.05],
-                     bbox=[0, 0, 1, 1])
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    for column in range(len(headers)):
-        table[0, column].set_facecolor("#e4e9ef")
-        table[0, column].get_text().set_weight("bold")
-        table[0, column].set_height(table[0, column].get_height() * 1.6)
-    for row_index, columns in enumerate(winners, start=1):
-        for column in columns:
-            table[row_index, column].set_facecolor("#d7efda")
-            table[row_index, column].get_text().set_weight("bold")
-    ax.set_title("Best feasible candidates across seeds", pad=18)
-    fig.text(0.5, 0.02, "Green cells: lowest variance per case (including exact ties). "
-             "Seed identifies the portfolio in raw_runs.csv.\n"
-             "Variance uses squared decimal returns. N/A: no valid, finite result. "
-             "Within-variant ties select the smallest seed.\n"
-             "Winners use full precision; displayed values are rounded.", ha="center", fontsize=9)
-    fig.tight_layout(rect=(0, 0.12, 1, 0.97))
-    path = PLOTS_DIRECTORY / f"best_candidates{suffix}.png"
-    fig.savefig(path, dpi=200)
-    plt.close(fig)
-    print(f"Saved {path}")
-
-
+# AI-assisted illustrations: best/mean comparison heatmaps.
 def save_comparison_heatmaps(summary: list[dict], suffix: str = "") -> None:
     """Plot best and mean variance differences from each case's best tested value."""
     case_names = sorted({r["case_name"] for r in summary})
@@ -558,7 +493,6 @@ def main() -> None:
     write_csv(tests, RESULTS_DIRECTORY / f"stat_tests{suffix}.csv")
     save_summary_table(summary, suffix)
     save_wilcoxon_table(tests, suffix)
-    save_best_results_table(rows, suffix)
     save_comparison_heatmaps(summary, suffix)
     for case_name, histories in convergence_histories.items():
         save_convergence(histories, case_name)
