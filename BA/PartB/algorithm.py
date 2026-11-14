@@ -1,8 +1,25 @@
+from collections.abc import Callable
+
 import numpy as np
 
 # MAIN ALGORITHM
 
-def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_factor=0.8, seed=None):
+
+def ba_function(
+    f: Callable[[np.ndarray], float],
+    dim: int,
+    bounds: tuple[float, float],
+    ns: int,
+    ne: int,
+    nb: int,
+    nre: int,
+    nrb: int,
+    ngh: float = 0.1,
+    stlim: int = 30,
+    shrink_factor: float = 0.95,
+    max_evals: int = 30_000,
+    seed: int | None = None,
+) -> tuple[np.ndarray, float]:
     """
     Minimizes a function f within the given bounds using the bees algorithm.
     Returns a (x, f(x)) value pair.
@@ -20,7 +37,6 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
     shrink_factor ->  ngh shrinkage per iteration if stagnant (0.0 .. 1.0)
     seed          ->  custom seed for random
     """
-    MAX_EVALS = 30_000
 
     class MaxReached(Exception):
         """Raised when MAX_EVALS is reached."""
@@ -31,11 +47,13 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
     ngh = ngh * (b_max - b_min)
 
     evals = 0
-    best_x, best_fx = None, np.inf
+    best_x: np.ndarray | None = None
+    best_fx: float = np.inf
 
+    # Evaluate function, raising an exception when max evals is reached.
     def evaluate(x):
         nonlocal evals, best_x, best_fx
-        if evals >= MAX_EVALS:
+        if evals >= max_evals:
             raise MaxReached
         fx = f(x)
         evals += 1
@@ -43,28 +61,30 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
             best_fx, best_x = fx, np.array(x, copy=True)
         return fx
 
-    # Initialization 
+    # Initialization
     xs = rng.uniform(b_min, b_max, size=(ns, dim))
     fxs = np.array([evaluate(x) for x in xs])
+    # Track neighborhood sizes and stagnant cycles.
     site_ngh = np.full(ns, ngh)
     st_count = np.zeros(ns, dtype=int)
 
     try:
         while True:
-            # Ranking
+            # Ranking sites in ascending order
             ranked = np.argsort(fxs)
 
             # Local search
             for rank, i in enumerate(ranked[:nb]):
                 n_bees = nre if rank < ne else nrb
 
-                foragers = rng.uniform(xs[i] - site_ngh[i],
-                                       xs[i] + site_ngh[i],
-                                       size=(n_bees, dim))
-                np.clip(foragers, b_min, b_max, out=foragers)
+                sites = rng.uniform(
+                    xs[i] - site_ngh[i], xs[i] + site_ngh[i], size=(n_bees, dim)
+                )
+                np.clip(sites, b_min, b_max, out=sites)
 
+                # Keep track of the local best value pair.
                 local_best_x, local_best_fx = None, np.inf
-                for x in foragers:
+                for x in sites:
                     fx = evaluate(x)
                     if fx < local_best_fx:
                         local_best_x, local_best_fx = x, fx
@@ -94,4 +114,6 @@ def ba_function(f, dim, bounds, ns, ne, nb, nre, nrb, ngh=0.1, stlim=10, shrink_
     except MaxReached:
         pass
 
+    # Assert so type check stops complaining.
+    assert best_x is not None
     return (best_x, best_fx)
