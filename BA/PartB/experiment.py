@@ -9,6 +9,7 @@ import numpy as np
 from algorithm import ba_function
 from functions import BENCHMARKS, BenchmarkTarget, Objective
 
+# Scaffolding for the experiments, since I wanted to keep the algorithm itself pure.
 
 @dataclass(frozen=True)
 class BAParams:
@@ -17,12 +18,16 @@ class BAParams:
     nb: int
     nre: int
     nrb: int
+    ngh: float = 0.1
+    stlim: int = 30
+    shrink_factor: float = 0.95
 
 
 @dataclass(frozen=True)
 class Config:
     master_seed: int
     runs: int
+    functions: tuple[str, ...]  # names from functions.BENCHMARKS
     dimensions: tuple[int, ...]
     max_evals: int
     output_dir: Path
@@ -32,6 +37,7 @@ class Config:
         return {
             "master_seed": self.master_seed,
             "runs": self.runs,
+            "functions": list(self.functions),
             "dimensions": list(self.dimensions),
             "max_evaluations": self.max_evals,
             **asdict(self.ba),
@@ -56,10 +62,11 @@ class EvaluationTracker:
 class RunResult(NamedTuple):
     seed: int
     x: np.ndarray
+    initial_fx: float  # best value in the initial scout population
     fx: float
     runtime: float
     evaluations: int
-    history: np.ndarray
+    history: np.ndarray  # best-so-far fx after every evaluation
 
 
 Results = dict[tuple[str, int], list[RunResult]]
@@ -90,6 +97,8 @@ def run_one(bench: BenchmarkTarget, dim: int, seed: int, cfg: Config) -> RunResu
     return RunResult(
         seed=seed,
         x=np.array(x, copy=True),
+        # The first ns evaluations are the random initial population.
+        initial_fx=float(tracker.history[cfg.ba.ns - 1]),
         fx=float(fx),
         runtime=elapsed,
         evaluations=tracker.evaluations,
@@ -97,15 +106,17 @@ def run_one(bench: BenchmarkTarget, dim: int, seed: int, cfg: Config) -> RunResu
     )
 
 
-def run_all(cfg: Config, benchmarks: list[BenchmarkTarget] = BENCHMARKS) -> Results:
-    # Reproducible, independent run seeds (same stream and order as before).
-    n_runs = len(benchmarks) * len(cfg.dimensions) * cfg.runs
-    seeds = np.random.default_rng(cfg.master_seed).integers(0, 2**32, size=n_runs)
-    experiments = product(benchmarks, cfg.dimensions, range(cfg.runs))
+def run_all(cfg: Config) -> Results:
+    by_name = {b.name: b for b in BENCHMARKS}
+    benchmarks = [by_name[name] for name in cfg.functions]
+
+    # The master seed drives a generator that gives each run its own seed.
+    rng = np.random.default_rng(cfg.master_seed)
 
     results: Results = {}
-    for (bench, dim, run), seed in zip(experiments, seeds, strict=True):
-        r = run_one(bench, dim, int(seed), cfg)
+    for bench, dim, run in product(benchmarks, cfg.dimensions, range(cfg.runs)):
+        seed = int(rng.integers(0, 2**32))
+        r = run_one(bench, dim, seed, cfg)
         results.setdefault((bench.name, dim), []).append(r)
 
         print(

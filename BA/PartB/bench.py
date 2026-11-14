@@ -1,6 +1,5 @@
 import json
 import record
-from functions import BENCHMARKS
 from pathlib import Path
 
 from experiment import BAParams, Config, run_all
@@ -10,10 +9,14 @@ from experiment import BAParams, Config, run_all
 CONFIG = Config(
     master_seed=42,
     runs=10,
+    functions=("sphere", "rosenbrock", "rastrigin", "ackley"),
     dimensions=(10, 30),
     max_evals=30_000,
     output_dir=Path("results"),
-    ba=BAParams(ns=15, ne=2, nb=5, nre=6, nrb=3),
+    ba=BAParams(
+        ns=13, ne=2, nb=6, nre=9, nrb=6,
+        ngh=0.1, stlim=20, shrink_factor=0.95,
+    )
 )
 
 
@@ -30,10 +33,15 @@ def run_experiment(cfg: Config) -> None:
     record.write_runs(results, out)
     record.write_best_so_far(results, out)
 
-    record.plot_convergence(results, "rastrigin", 10, out / "rastrigin_convergence.png")
-    record.plot_boxplots(
-        results, [b.name for b in BENCHMARKS], 30, out / "final_boxplots_d30.png"
-    )
+    # include these mandatories if present
+    if ("rastrigin", 10) in results:
+        record.plot_convergence(
+            results, "rastrigin", 10, out / "rastrigin_convergence.png"
+        )
+    if 30 in cfg.dimensions:
+        record.plot_boxplots(
+            results, list(cfg.functions), 30, out / "final_boxplots_d30.png"
+        )
 
     print("\nExperiments completed.")
     print(f"Results saved to: {out.resolve()}")

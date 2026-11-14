@@ -23,11 +23,13 @@ def write_csv(path: Path, header: list[str], rows: Iterable) -> None:
 def summary_rows(results: Results) -> list[tuple]:
     rows = []
     for (name, dim), records in results.items():
+        initial = np.array([r.initial_fx for r in records])
         fitness = np.array([r.fx for r in records])
         times = np.array([r.runtime for r in records])
         rows.append((
             name,
             dim,
+            float(initial.mean()),
             float(fitness.min()),
             float(fitness.mean()),
             float(fitness.std(ddof=1)),
@@ -38,14 +40,14 @@ def summary_rows(results: Results) -> list[tuple]:
 
 def print_summary(rows: list[tuple]) -> None:
     print(
-        f"\n{'Function':12s} {'Dim':>4s} "
+        f"\n{'Function':12s} {'Dim':>4s} {'Initial mean':>14s} "
         f"{'Best':>14s} {'Mean':>14s} "
         f"{'Std':>14s} {'Avg time':>12s}"
     )
-    print("-" * 76)
-    for name, dim, best, mean, std, avg_time in rows:
+    print("-" * 91)
+    for name, dim, initial, best, mean, std, avg_time in rows:
         print(
-            f"{name:12s} {dim:4d} "
+            f"{name:12s} {dim:4d} {initial:14.6e} "
             f"{best:14.6e} {mean:14.6e} "
             f"{std:14.6e} {avg_time:11.3f}s"
         )
@@ -53,7 +55,8 @@ def print_summary(rows: list[tuple]) -> None:
 
 def write_summary(rows: list[tuple], out: Path) -> None:
     write_csv(out/"summary.csv",
-        ["function", "dimension", "best", "mean", "std", "mean_runtime_s"],
+        ["function", "dimension", "initial_mean", "best", "mean", "std",
+         "mean_runtime_s"],
         rows,
     )
 
@@ -62,10 +65,10 @@ def write_summary(rows: list[tuple], out: Path) -> None:
 
 def write_runs(results: Results, out: Path) -> None:
     write_csv(out/"runs.csv",
-        ["function", "dimension", "seed", "final_fx", "best_x",
+        ["function", "dimension", "seed", "initial_fx", "final_fx", "best_x",
          "evaluations", "runtime_s"],
         (
-            (name, dim, r.seed, r.fx, json.dumps(r.x.tolist()),
+            (name, dim, r.seed, r.initial_fx, r.fx, json.dumps(r.x.tolist()),
              r.evaluations, r.runtime)
             for (name, dim), records in results.items()
             for r in records
@@ -74,6 +77,7 @@ def write_runs(results: Results, out: Path) -> None:
 
 
 def write_best_so_far(results: Results, out: Path) -> None:
+    # Only write the evaluations where the best-so-far value was updated.
     write_csv(out/"best_so_far.csv",
         ["function", "dimension", "seed", "evaluation", "best_fx"],
         (
@@ -81,6 +85,7 @@ def write_best_so_far(results: Results, out: Path) -> None:
             for (name, dim), records in results.items()
             for r in records
             for i, fx in enumerate(r.history, start=1)
+            if i == 1 or fx < r.history[i - 2]
         ),
     )
 
@@ -106,12 +111,17 @@ def plot_convergence(results: Results, name: str, dim: int, path: Path) -> None:
         ha="center", fontsize=9,
     )
     fig.tight_layout(rect=(0, 0.06, 1, 1))
-    fig.savefig(path, dpi=300, bbox_inches="tight")
+    fig.savefig(str(path), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_boxplots(results: Results, names: list[str], dim: int, path: Path) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    # Two panels per row, as many rows as needed.
+    cols = min(len(names), 2)
+    rows = -(-len(names) // cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows), squeeze=False)
+    for ax in axes.flat[len(names):]:
+        ax.set_visible(False)
 
     for i, (ax, name) in enumerate(zip(axes.flat, names)):
         fitness = [r.fx for r in results[(name, dim)]]
@@ -132,5 +142,5 @@ def plot_boxplots(results: Results, names: list[str], dim: int, path: Path) -> N
         ha="center", fontsize=9,
     )
     fig.tight_layout(rect=(0, 0.06, 1, 0.95))
-    fig.savefig(path, dpi=300, bbox_inches="tight")
+    fig.savefig(str(path), dpi=300, bbox_inches="tight")
     plt.close(fig)
