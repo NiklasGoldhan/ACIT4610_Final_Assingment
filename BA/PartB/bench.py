@@ -14,7 +14,7 @@ CONFIG = Config(
     max_evals=30_000,
     output_dir=Path("results"),
     ba=BAParams(
-        ns=13, ne=2, nb=6, nre=9, nrb=6,
+        ns=13, ne=3, nb=6, nre=9, nrb=6,
         ngh=0.1, stlim=20, shrink_factor=0.95,
     )
 )
