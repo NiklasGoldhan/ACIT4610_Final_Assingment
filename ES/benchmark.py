@@ -18,7 +18,7 @@ PLOTS_DIRECTORY = ES_DIRECTORY / "plots"
 
 DATASETS = ["port1", "port2", "port3", "port4", "port5"]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-CONVERGENCE_CASES = {f"{dataset}_alpha050" for dataset in DATASETS}
+CONVERGENCE_CASES = {"port5_alpha050"}
 
 VARIANTS = {
     "(1+1)-ES": OnePlusOneES,
@@ -96,11 +96,11 @@ def run_single_trial(case_name: str, problem: PortfolioData, Rmin: float, ref_va
 def run_all_experiments(test_cases: list[tuple]) -> tuple[list[dict], dict]:
     """Run all trials and keep histories per plotted case, variant, and seed."""
     rows = []
-    # Full experiment: one alpha050 plot per dataset. A single-case run plots that case.
+    # Collect histories only for the assignment's required convergence plot.
     convergence_histories = {
         case_name: {name: [] for name in VARIANTS}
         for case_name, *_ in test_cases
-        if case_name in CONVERGENCE_CASES or len(test_cases) == 1
+        if case_name in CONVERGENCE_CASES
     }
     total_runs = len(test_cases) * len(VARIANTS) * len(SEEDS)
     run_counter = 0

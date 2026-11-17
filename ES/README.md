@@ -85,16 +85,15 @@ The `results/` and `plots/` folders are created when the benchmark runs.
 - `results/comparison_heatmaps.csv`: The percentages underlying both heatmap panels.
   Missing results, and undefined percentages for positive values against a zero baseline,
   are shown as N/A in the figures and NaN in the CSVs.
-- `results/convergence_portX_alpha050.npz`: Best-so-far histories for each of the five
-  datasets (`X = 1, ..., 5`), with 10 seed histories per ES variant.
-- `plots/convergence_portX_alpha050.png`: Five convergence plots, one per dataset at
-  alpha = 0.50. Each plot shows three lines: mean best-so-far variance across 10 seeds
-  for each ES variant, against objective evaluations. The variance axis is logarithmic.
-  This includes the required `port5_alpha050` plot.
+- `results/convergence_port5_alpha050.npz`: Best-so-far histories for port5_alpha050,
+  with 10 seed histories per ES variant.
+- `plots/convergence_port5_alpha050.png`: The required convergence plot, showing mean
+  best-so-far variance across 10 seeds for each of the three ES variants against objective
+  evaluations. The variance axis is logarithmic.
 
-When using `--case`, the benchmark saves a convergence plot and history file for that
-selected case, including targets other than alpha = 0.50. The summary table and heatmaps
-also contain only the selected case, with its name appended to their filenames.
+When using `--case`, the summary table and heatmaps contain only the selected case,
+with its name appended to their filenames. The convergence plot and history file are
+generated only when the selected cases include `port5_alpha050`.
 
 Variance summaries and the new illustrations use only valid runs with finite variance;
 mean runtime includes all runs. The best-variance heatmap shows the strongest solution
