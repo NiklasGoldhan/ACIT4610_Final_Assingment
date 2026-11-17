@@ -24,7 +24,7 @@ The target lies between the equal-weight return (R_eq) and the best single-asset
 ## Requirements
 
 - Python ≥ 3.13
-- numpy 2.5.4, matplotlib 3.11.2, scipy 1.18.1 (exact versions are pinned in `uv.lock`)
+- numpy 2.5.4, matplotlib 3.11.2 (exact versions are pinned in `uv.lock`)
 - [uv](https://docs.astral.sh/uv/)
 
 Install from the repository root:
@@ -44,7 +44,7 @@ uv run python -m ES.benchmark --case port1_alpha050
 # Full experiment: 15 cases × 3 variants × 10 seeds (ish 6–7 minutes)
 uv run python -m ES.benchmark
 
-# Rebuild the summary and Wilcoxon tables from results/ without rerunning the experiment
+# Rebuild the summary table from results/ without rerunning the experiment
 uv run python -m ES.benchmark --tables-only
 ```
 
@@ -76,10 +76,6 @@ The `results/` and `plots/` folders are created when the benchmark runs.
 - `plots/summary_table.png`: The summary table for the report, built from `summary.csv`: one row per case and
   variant with number of assets, R_min, best and mean variance, standard deviation, feasible runs, mean runtime
   and mean gap to the OR-Library optimum. The lowest mean variance in each case is highlighted.
-- `results/stat_tests.csv`: Paired Wilcoxon signed-rank tests between the variants
-- `plots/wilcoxon_table.png`: The Wilcoxon results for the report, built from `stat_tests.csv`: one row per case
-  with the p-value and the better variant for each of the three variant pairs. Significant results (p < 0.05)
-  are highlighted.
 - `plots/comparison_heatmaps.png`: Two heatmaps side by side, with all dataset–alpha
   combinations as rows and the three ES variants as columns. The left panel compares
   best variance across seeds; the right compares mean variance across seeds. Both use
@@ -109,7 +105,7 @@ descriptive and do not establish statistical significance.
 
 AI tools (Cursor, Claude Code) were used during development of the ES folder.
 
-- `benchmark.py`: largely AI-generated, including the experiment loop, CSV output, the Wilcoxon signed-rank test, plots and the OR-Library gap calculation. It was reviewed and adjusted by the group.
+- `benchmark.py`: largely AI-generated, including the experiment loop, CSV output, plots and the OR-Library gap calculation. It was reviewed and adjusted by the group.
 - `base.py`: AI helped implement the formulas from the assignment in numpy (covariance, simplex projection, return repair).
 - `population_es.py`: written by the group. AI was used for debugging, review and small fixes (comment and formatting cleanup).
 - `one_plus_one.py`: Reviewed by AI.

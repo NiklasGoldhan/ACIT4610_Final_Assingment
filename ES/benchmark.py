@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import wilcoxon
 
 from ES.base import PortfolioData, ESBase, BUDGET
 from ES.one_plus_one import OnePlusOneES
@@ -20,21 +19,12 @@ PLOTS_DIRECTORY = ES_DIRECTORY / "plots"
 DATASETS = ["port1", "port2", "port3", "port4", "port5"]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 CONVERGENCE_CASES = {f"{dataset}_alpha050" for dataset in DATASETS}
-SIGNIFICANCE_LEVEL = 0.05
 
 VARIANTS = {
     "(1+1)-ES": OnePlusOneES,
     "(mu+lambda)-ES": MuPlusLambdaES,
     "(mu,lambda)-ES": MuCommaLambdaES,
 }
-
-# Variant pairs for the Wilcoxon test.
-COMPARISONS = [
-    ("(1+1)-ES", "(mu+lambda)-ES"),
-    ("(1+1)-ES", "(mu,lambda)-ES"),
-    ("(mu+lambda)-ES", "(mu,lambda)-ES"),
-]
-
 
 # --- Test cases ---
 
@@ -166,46 +156,6 @@ def summarize(rows: list[dict]) -> list[dict]:
     return summary
 
 
-def wilcoxon_signed_rank(x: list[float], y: list[float]) -> tuple[float, int]:
-    """Paired Wilcoxon test. Returns (p-value, number of non-zero pairs)."""
-    d = np.subtract(x, y)
-    d = d[d != 0]
-    if d.size == 0:   # all pairs equal, scipy would return NaN
-        return 1.0, 0
-    return float(wilcoxon(d, alternative="two-sided").pvalue), d.size
-
-
-def compare_variants(rows: list[dict]) -> list[dict]:
-    """Wilcoxon test for every pair in COMPARISONS on every case, paired by seed."""
-    variance = {(r["case_name"], r["variant"], r["seed"]): r["variance"] for r in rows}
-    case_names = list(dict.fromkeys(r["case_name"] for r in rows))
-    tests = []
-
-    for name_a, name_b in COMPARISONS:
-        for case_name in case_names:
-            x = [variance[case_name, name_a, s] for s in SEEDS]
-            y = [variance[case_name, name_b, s] for s in SEEDS]
-            p_value, pairs = wilcoxon_signed_rank(x, y)
-
-            if p_value >= SIGNIFICANCE_LEVEL:
-                better = "no significant difference"
-            elif np.median(np.subtract(x, y)) < 0:
-                better = name_a
-            else:
-                better = name_b
-
-            tests.append({
-                "case_name": case_name,
-                "variant_a": name_a,
-                "variant_b": name_b,
-                "pairs": pairs,
-                "p_value": p_value,
-                "better_at_0.05": better,
-            })
-
-    return tests
-
-
 # --- Output ---
 
 def write_csv(rows: list[dict], file_path: Path) -> None:
@@ -292,70 +242,6 @@ def save_summary_table(summary: list[dict], suffix: str = "") -> None:
              ha="center", fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 0.99))
     path = PLOTS_DIRECTORY / f"summary_table{suffix}.png"
-    fig.savefig(path, dpi=200)
-    plt.close(fig)
-    print(f"Saved {path}")
-
-
-def load_stat_tests(file_path: Path) -> list[dict]:
-    """Read a saved Wilcoxon CSV back, so its table can be rebuilt without rerunning."""
-    with open(file_path, newline="") as file:
-        rows = list(csv.DictReader(file))
-    for row in rows:
-        row["pairs"] = int(row["pairs"])
-        row["p_value"] = float(row["p_value"])
-    return rows
-
-
-# AI-generated (Claude Code): Wilcoxon results table for the report.
-def save_wilcoxon_table(tests: list[dict], suffix: str = "") -> None:
-    """Save the paired Wilcoxon p-value and result for every case and variant pair."""
-    lookup = {(t["case_name"], t["variant_a"], t["variant_b"]): t for t in tests}
-    case_names = sorted({t["case_name"] for t in tests})
-    headers = ["Case"]
-    for name_a, name_b in COMPARISONS:
-        headers.extend([f"{name_a} vs\n{name_b}\np-value", "Better"])
-
-    table_rows, significant = [], []
-    for case in case_names:
-        row, marked = [case], []
-        for index, (name_a, name_b) in enumerate(COMPARISONS):
-            test = lookup.get((case, name_a, name_b))
-            if test is None:
-                row.extend(["N/A", "N/A"])
-                continue
-            better = test["better_at_0.05"]
-            is_significant = better != "no significant difference"
-            row.extend([f"{test['p_value']:.3f}", better if is_significant else "n.s."])
-            if is_significant:
-                marked.extend([1 + 2 * index, 2 + 2 * index])
-        table_rows.append(row)
-        significant.append(marked)
-
-    fig, ax = plt.subplots(figsize=(14, 0.38 * len(case_names) + 3))
-    ax.axis("off")
-    table = ax.table(cellText=table_rows, colLabels=headers, cellLoc="center",
-                     colWidths=[0.16, 0.13, 0.14, 0.13, 0.14, 0.15, 0.15],
-                     bbox=[0, 0, 1, 1])
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    for column in range(len(headers)):
-        table[0, column].set_facecolor("#e4e9ef")
-        table[0, column].get_text().set_weight("bold")
-        table[0, column].set_height(table[0, column].get_height() * 2.2)
-    for row_index, columns in enumerate(significant, start=1):
-        for column in columns:
-            table[row_index, column].set_facecolor("#d7efda")
-    ax.set_title("Wilcoxon signed-rank tests between the ES variants, paired by seed", pad=12)
-    fig.text(0.5, 0.02,
-             f"Two-sided test per case on the final variances of the {len(SEEDS)} paired runs; "
-             "pairs with equal results are dropped.\n"
-             f"Green: significant at p < {SIGNIFICANCE_LEVEL}. Better: the variant with the lower variance "
-             "(median paired difference). n.s.: no significant difference.\n"
-             f"With {len(SEEDS)} pairs, the smallest possible p-value is {2 / 2 ** len(SEEDS):.3f}.",
-             ha="center", fontsize=9)
-    fig.tight_layout(rect=(0, 0.12, 1, 0.98))
-    path = PLOTS_DIRECTORY / f"wilcoxon_table{suffix}.png"
     fig.savefig(path, dpi=200)
     plt.close(fig)
     print(f"Saved {path}")
@@ -462,7 +348,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark the ES variants.")
     parser.add_argument("--case", help="run a single test case, e.g. port1_alpha050")
     parser.add_argument("--tables-only", action="store_true",
-                        help="rebuild the summary and Wilcoxon tables from the saved CSVs without rerunning")
+                        help="rebuild the summary table from the saved CSV without rerunning")
     args = parser.parse_args()
 
     RESULTS_DIRECTORY.mkdir(exist_ok=True)
@@ -472,7 +358,6 @@ def main() -> None:
     suffix = f"_{args.case}" if args.case else ""
     if args.tables_only:
         save_summary_table(load_summary(RESULTS_DIRECTORY / f"summary{suffix}.csv"), suffix)
-        save_wilcoxon_table(load_stat_tests(RESULTS_DIRECTORY / f"stat_tests{suffix}.csv"), suffix)
         return
 
     test_cases = load_test_cases()
@@ -486,13 +371,10 @@ def main() -> None:
 
     rows, convergence_histories = run_all_experiments(test_cases)
     summary = summarize(rows)
-    tests = compare_variants(rows)
 
     write_csv(rows, RESULTS_DIRECTORY / f"raw_runs{suffix}.csv")
     write_csv(summary, RESULTS_DIRECTORY / f"summary{suffix}.csv")
-    write_csv(tests, RESULTS_DIRECTORY / f"stat_tests{suffix}.csv")
     save_summary_table(summary, suffix)
-    save_wilcoxon_table(tests, suffix)
     save_comparison_heatmaps(summary, suffix)
     for case_name, histories in convergence_histories.items():
         save_convergence(histories, case_name)
